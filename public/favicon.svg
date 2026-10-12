@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#181a20" />
+      <stop offset="70%" stop-color="#0c0d11" />
+      <stop offset="100%" stop-color="#050608" />
+    </radialGradient>
+    
+    <!-- Lime Energy Glow -->
+    <linearGradient id="limeGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d4ff00" />
+      <stop offset="100%" stop-color="#99e600" />
+    </linearGradient>
+
+    <!-- Metallic Muscle Gradient -->
+    <linearGradient id="armWhite" x1="20%" y1="0%" x2="80%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="50%" stop-color="#e2e8f0" />
+      <stop offset="100%" stop-color="#94a3b8" />
+    </linearGradient>
+
+    <filter id="neon" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background Base (Dark Athletic Squircle) -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="108" fill="none" stroke="#222630" stroke-width="4" />
+  <circle cx="256" cy="256" r="218" fill="none" stroke="#ccff00" stroke-opacity="0.18" stroke-width="3" stroke-dasharray="14 10" />
+
+  <!-- Central Fitness Energy Aura -->
+  <circle cx="256" cy="256" r="140" fill="#ccff00" fill-opacity="0.05" />
+
+  <!-- Left/Top Arm & Bicep (Solid athletic geometry) -->
+  <g id="arm-left">
+    <!-- Forearm & Wrist -->
+    <path d="M 68 180 L 160 215 C 190 226, 215 240, 235 255 L 220 280 C 195 260, 160 245, 120 240 L 52 230 Z" fill="url(#armWhite)" />
+    <!-- Bicep Peak highlight -->
+    <path d="M 80 150 C 115 135, 155 160, 175 195 L 145 208 C 130 185, 105 170, 75 180 Z" fill="#ffffff" />
+    <!-- Muscle Definition Groove -->
+    <path d="M 120 200 C 145 210, 175 228, 195 245" fill="none" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+  </g>
+
+  <!-- Right/Bottom Arm & Tricep -->
+  <g id="arm-right">
+    <!-- Forearm & Wrist -->
+    <path d="M 444 332 L 352 297 C 322 286, 297 272, 277 257 L 292 232 C 317 252, 352 267, 392 272 L 460 282 Z" fill="url(#armWhite)" />
+    <!-- Tricep & Forearm curve -->
+    <path d="M 432 362 C 397 377, 357 352, 337 317 L 367 304 C 382 327, 407 342, 437 332 Z" fill="#cbd5e1" />
+    <!-- Definition Line -->
+    <path d="M 392 312 C 367 302, 337 284, 317 267" fill="none" stroke="#64748b" stroke-width="4" stroke-linecap="round" />
+  </g>
+
+  <!-- Clasping Hands Center (Power Handshake / Bro Clasp) -->
+  <g id="handshake" filter="url(#neon)">
+    <!-- Palm Lock Mass -->
+    <path d="M 220 250 C 235 230, 260 225, 280 240 L 292 255 C 300 268, 292 285, 276 292 L 255 298 C 235 300, 218 285, 214 268 Z" fill="#ffffff" />
+
+    <!-- Left Thumb clamping down -->
+    <path d="M 230 235 C 248 220, 268 225, 275 238 C 278 245, 270 254, 258 258 C 244 262, 232 250, 230 235 Z" fill="url(#limeGlow)" />
+    
+    <!-- Right Thumb wrapping -->
+    <path d="M 282 277 C 264 292, 244 287, 237 274 C 234 267, 242 258, 254 254 C 268 250, 280 262, 282 277 Z" fill="url(#limeGlow)" />
+
+    <!-- Clenched Interlocking Fingers (Top) -->
+    <path d="M 245 220 C 265 210, 282 220, 285 235" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round" />
+    <path d="M 260 230 C 275 225, 290 235, 292 248" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round" />
+
+    <!-- Clenched Interlocking Fingers (Bottom) -->
+    <path d="M 267 292 C 247 302, 230 292, 227 277" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round" />
+    <path d="M 252 282 C 237 287, 222 277, 220 264" fill="none" stroke="#0f172a" stroke-width="5" stroke-linecap="round" />
+  </g>
+
+  <!-- Electric Energy Sparks & Accent Lightning (Teamwork / Strength) -->
+  <g id="accents">
+    <polygon points="256,120 264,155 248,155" fill="#ccff00" />
+    <circle cx="256" cy="172" r="5" fill="#ccff00" />
+
+    <polygon points="256,392 248,357 264,357" fill="#ccff00" />
+    <circle cx="256" cy="340" r="5" fill="#ccff00" />
+
+    <!-- Dynamic Speed/Power Dashes -->
+    <line x1="180" y1="170" x2="200" y2="185" stroke="#ccff00" stroke-width="4" stroke-linecap="round" />
+    <line x1="332" y1="342" x2="312" y2="327" stroke="#ccff00" stroke-width="4" stroke-linecap="round" />
+  </g>
+</svg>

@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Outfit', 'Plus Jakarta Sans', sans-serif;
+    
+    --bg-dark: #090a0f;
+    --card-surface: #12141c;
+    --card-surface-elevated: #181b26;
+    --card-border: #1f2433;
+    
+    --lime-accent: #ccff00;
+    --lime-glow: rgba(204, 255, 0, 0.25);
+    
+    --status-morning: #f59e0b;
+    --status-evening: #06b6d4;
+    --status-night: #8b5cf6;
+    --status-rest: #10b981;
+    --status-undecided: #64748b;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-dark);
+    color: #f1f5f9;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, .font-heading {
+    font-family: var(--font-display);
+    letter-spacing: -0.025em;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090a0f;
+}
+::-webkit-scrollbar-thumb {
+  background: #1f2433;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Subtle Glowing Borders and Glassmorphism */
+.glass-panel {
+  background: rgba(18, 20, 28, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.glass-panel-elevated {
+  background: rgba(24, 27, 38, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.lime-glow-shadow {
+  box-shadow: 0 0 24px -4px rgba(204, 255, 0, 0.35);
+}
+
+.lime-border-glow {
+  border-color: rgba(204, 255, 0, 0.4);
+  box-shadow: 0 0 12px -2px rgba(204, 255, 0, 0.2);
+}
+
+/* Pulse animation for active gym bro statuses */
+@keyframes softPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.02); }
+}
+
+.animate-soft-pulse {
+  animation: softPulse 2.5s infinite ease-in-out;
+}
