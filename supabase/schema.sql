@@ -126,6 +126,7 @@ CREATE TABLE IF NOT EXISTS public.daily_availability (
 ALTER TABLE public.daily_availability ENABLE ROW LEVEL SECURITY;
 
 -- Daily Availability Policies
+DROP POLICY IF EXISTS "Users can view availability in groups they belong to" ON public.daily_availability;
 CREATE POLICY "Users can view availability in groups they belong to"
   ON public.daily_availability FOR SELECT
   TO authenticated
@@ -135,18 +136,24 @@ CREATE POLICY "Users can view availability in groups they belong to"
       WHERE group_members.group_id = daily_availability.group_id
       AND group_members.user_id = auth.uid()
     )
+    OR
+    user_id = auth.uid()
   );
 
+DROP POLICY IF EXISTS "Users can insert their own availability" ON public.daily_availability;
 CREATE POLICY "Users can insert their own availability"
   ON public.daily_availability FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own availability" ON public.daily_availability;
 CREATE POLICY "Users can update their own availability"
   ON public.daily_availability FOR UPDATE
   TO authenticated
-  USING (auth.uid() = user_id);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can delete their own availability" ON public.daily_availability;
 CREATE POLICY "Users can delete their own availability"
   ON public.daily_availability FOR DELETE
   TO authenticated

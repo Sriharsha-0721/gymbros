@@ -111,11 +111,17 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
           setGroups(userGroups);
 
+          const savedGroupId = localStorage.getItem(STORAGE_KEY_ACTIVE_GROUP_ID);
           const defaultGroupId =
-            localStorage.getItem(STORAGE_KEY_ACTIVE_GROUP_ID) || userGroups[0]?.id || '';
+            (savedGroupId && userGroups.some((g) => g.id === savedGroupId))
+              ? savedGroupId
+              : userGroups[0]?.id || '';
           setActiveGroupIdState(defaultGroupId);
-
           if (defaultGroupId) {
+            localStorage.setItem(STORAGE_KEY_ACTIVE_GROUP_ID, defaultGroupId);
+          }
+
+          if (defaultGroupId && isUUID(defaultGroupId)) {
             // Fetch group members
             const { data: groupMembers } = await supabase
               .from('group_members')
@@ -130,22 +136,61 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 }))
               );
             }
+          }
 
-            // Fetch group availabilities
+          // Fetch availabilities: both group-wide AND user-specific
+          let loadedAvailabilities: DailyAvailability[] = [];
+
+          if (defaultGroupId && isUUID(defaultGroupId)) {
             const { data: avData } = await supabase
               .from('daily_availability')
               .select('*, profiles (*)')
               .eq('group_id', defaultGroupId);
 
             if (avData) {
-              setAvailabilities(
-                avData.map((a: any) => ({
-                  ...a,
-                  profile: a.profiles,
-                }))
-              );
+              loadedAvailabilities = avData.map((a: any) => ({
+                ...a,
+                profile: a.profiles,
+              }));
             }
           }
+
+          // Also fetch user's own availability directly so personal status is never lost
+          const { data: userAvData } = await supabase
+            .from('daily_availability')
+            .select('*, profiles (*)')
+            .eq('user_id', user!.id);
+
+          if (userAvData) {
+            for (const uAv of userAvData) {
+              const idx = loadedAvailabilities.findIndex(
+                (a) => a.date === uAv.date && a.user_id === uAv.user_id
+              );
+              if (idx >= 0) {
+                loadedAvailabilities[idx] = { ...uAv, profile: uAv.profiles };
+              } else {
+                loadedAvailabilities.push({ ...uAv, profile: uAv.profiles });
+              }
+            }
+          }
+
+          // Resilient cache merge from localStorage
+          const localStoredAvail = localStorage.getItem(STORAGE_KEY_AVAILABILITIES);
+          if (localStoredAvail) {
+            try {
+              const parsedLocal: DailyAvailability[] = JSON.parse(localStoredAvail);
+              for (const item of parsedLocal) {
+                if (!loadedAvailabilities.some((m) => m.date === item.date && m.user_id === item.user_id)) {
+                  loadedAvailabilities.push(item);
+                }
+              }
+            } catch (e) {
+              console.warn('Failed to parse local cached availabilities:', e);
+            }
+          }
+
+          setAvailabilities(loadedAvailabilities);
+          localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(loadedAvailabilities));
 
           // Fetch user workout logs
           const { data: logsData } = await supabase
@@ -253,34 +298,23 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   ): Promise<boolean> => {
     if (!user) return false;
 
-    // Resolve or fallback to active group
-    let currentActive = activeGroup;
-    if (!currentActive) {
-      if (groups.length > 0) {
-        currentActive = groups[0];
-      } else {
-        // Fallback demo squad
-        const fallbackGroup: GymGroup = {
-          id: isUUID(user.id) ? undefined as any : 'grp_morning_crew_01',
-          name: 'My Gym Squad',
-          invite_code: 'BRO-1000',
-          created_by: user.id,
-          created_at: new Date().toISOString(),
-        };
-        currentActive = fallbackGroup;
+    // Resolve target group ID safely
+    let targetGroupId = activeGroup?.id;
+    if (!targetGroupId || !isUUID(targetGroupId)) {
+      const validGroup = groups.find((g) => isUUID(g.id));
+      if (validGroup) {
+        targetGroupId = validGroup.id;
       }
     }
 
-    const targetGroupId = currentActive.id;
-
-    // Optimistically update local state immediately
+    // Single source of truth index by user and date
     const existingIndex = availabilities.findIndex(
-      (a) => a.user_id === user.id && a.date === date && (!targetGroupId || a.group_id === targetGroupId)
+      (a) => a.user_id === user.id && a.date === date
     );
 
     const updatedEntry: DailyAvailability = {
       id: existingIndex >= 0 ? availabilities[existingIndex].id : `av_${Date.now()}`,
-      group_id: targetGroupId,
+      group_id: targetGroupId || 'grp_personal',
       user_id: user.id,
       date,
       status,
@@ -301,24 +335,34 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setAvailabilities(newAvailabilities);
     localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(newAvailabilities));
 
-    // If real Supabase UUID user and group exist, sync to Cloud PostgreSQL
-    if (configured && supabase && isUUID(user.id) && isUUID(targetGroupId)) {
-      try {
-        const { error } = await supabase.from('daily_availability').upsert(
-          {
-            group_id: targetGroupId,
-            user_id: user.id,
-            date,
-            status,
-            preferred_time: status === 'rest' ? null : preferredTime,
-            notes: notes || null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'group_id,user_id,date' }
-        );
-        if (error) console.error('Supabase availability update error:', error);
-      } catch (err) {
-        console.error('Supabase availability update failed:', err);
+    // If real Supabase UUID user exists, sync to Cloud PostgreSQL
+    if (configured && supabase && isUUID(user.id)) {
+      let validGroupId = isUUID(targetGroupId) ? targetGroupId : null;
+      if (!validGroupId && groups.length > 0) {
+        const matching = groups.find((g) => isUUID(g.id));
+        if (matching) validGroupId = matching.id;
+      }
+
+      if (validGroupId) {
+        try {
+          const { error } = await supabase.from('daily_availability').upsert(
+            {
+              group_id: validGroupId,
+              user_id: user.id,
+              date,
+              status,
+              preferred_time: status === 'rest' ? null : preferredTime,
+              notes: notes || null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'group_id,user_id,date' }
+          );
+          if (error) {
+            console.error('Supabase availability update error:', error.message, error.code, error.details);
+          }
+        } catch (err) {
+          console.error('Supabase availability update failed:', err);
+        }
       }
     }
 

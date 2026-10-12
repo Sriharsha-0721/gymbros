@@ -39,26 +39,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (sessionError) throw sessionError;
 
           if (session?.user) {
-            // Fetch user profile from database
-            const { data: profile, error: profileError } = await supabase
+            let { data: profile } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
-              .single();
+              .maybeSingle();
 
-            if (profileError && profileError.code === 'PGRST116') {
-              // Profile not yet created -> Trigger onboarding
-              setNeedsOnboarding(true);
-              setUser({
+            if (!profile) {
+              const defaultUsername =
+                (session.user.email?.split('@')[0] || 'bro').toLowerCase().replace(/[^a-z0-9_]/g, '') +
+                '_' +
+                session.user.id.slice(0, 4);
+
+              const initialProfile: UserProfile = {
                 id: session.user.id,
                 email: session.user.email || '',
-                username: '',
-                display_name: session.user.user_metadata?.full_name || 'Gym Bro',
+                username: defaultUsername,
+                display_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Gym Bro',
                 avatar_url: session.user.user_metadata?.avatar_url,
                 created_at: new Date().toISOString(),
-              });
-            } else if (profile) {
+              };
+
+              try {
+                await supabase.from('profiles').upsert(initialProfile);
+                profile = initialProfile;
+              } catch (upsertErr) {
+                console.error('Failed to create initial profile in database:', upsertErr);
+              }
+
+              setNeedsOnboarding(true);
+            }
+
+            if (profile) {
               setUser(profile);
+              localStorage.setItem(LOCAL_STORAGE_KEY_USER, JSON.stringify(profile));
             }
           } else {
             setUser(null);
