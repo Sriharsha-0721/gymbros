@@ -172,7 +172,9 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
         <div className="pt-3.5 grid grid-cols-1 sm:grid-cols-2 gap-3">
           {members.map((member) => {
             const isMe = member.user_id === currentUser.id;
-            const profile = member.profile;
+            const profile = member.profile || (isMe ? currentUser : undefined);
+            const displayName = profile?.display_name || (isMe ? currentUser.display_name : 'Gym Bro');
+            const username = profile?.username || (isMe ? currentUser.username : 'user');
 
             return (
               <div
@@ -185,14 +187,14 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <Avatar
-                    src={profile?.avatar_url}
-                    name={profile?.display_name || profile?.username || 'Gym Bro'}
+                    src={profile?.avatar_url || (isMe ? currentUser.avatar_url : undefined)}
+                    name={displayName}
                     size="md"
                   />
                   <div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm font-bold text-white">
-                        {profile?.display_name || profile?.username}
+                        {displayName}
                       </span>
                       {isMe && (
                         <span className="px-1.5 py-0.2 rounded bg-[#ccff00] text-[#090a0f] text-[9px] font-black uppercase">
@@ -208,7 +210,7 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
                     </div>
 
                     <span className="text-xs text-slate-400 block">
-                      @{profile?.username || 'user'}
+                      @{username}
                     </span>
 
                     {profile?.bio && (

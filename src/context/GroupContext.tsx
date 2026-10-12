@@ -159,14 +159,41 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .select('*, profiles (*)')
               .eq('group_id', defaultGroupId);
 
-            if (groupMembers) {
-              setMembers(
-                groupMembers.map((m: any) => ({
-                  ...m,
-                  profile: m.profiles,
-                }))
-              );
+            let loadedMembers: GroupMember[] = [];
+            if (groupMembers && groupMembers.length > 0) {
+              loadedMembers = groupMembers.map((m: any) => ({
+                ...m,
+                profile: m.profiles || (m.user_id === user!.id ? user : undefined),
+              }));
             }
+
+            // Guarantee creator/current user is ALWAYS included in members list
+            const currentGroupObj = userGroups.find((g) => g.id === defaultGroupId);
+            const isCreator = currentGroupObj?.created_by === user!.id;
+            if (!loadedMembers.some((m) => m.user_id === user!.id)) {
+              const selfMember: GroupMember = {
+                id: `mem_${user!.id}`,
+                group_id: defaultGroupId,
+                user_id: user!.id,
+                role: isCreator ? 'admin' : 'member',
+                joined_at: new Date().toISOString(),
+                profile: user!,
+              };
+              loadedMembers.unshift(selfMember);
+
+              // Auto-sync self membership to Supabase in background
+              supabase.from('group_members').upsert(
+                {
+                  group_id: defaultGroupId,
+                  user_id: user!.id,
+                  role: isCreator ? 'admin' : 'member',
+                },
+                { onConflict: 'group_id,user_id' }
+              ).then(() => {});
+            }
+
+            setMembers(loadedMembers);
+            localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(loadedMembers));
           }
 
           // Fetch availabilities: both group-wide AND user-specific
@@ -276,21 +303,47 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [user?.id, configured]);
 
   const fetchGroupDetails = async (groupId: string) => {
-    if (!configured || !supabase || !isUUID(groupId)) return;
+    if (!configured || !supabase || !isUUID(groupId) || !user) return;
     try {
       const { data: groupMembers } = await supabase
         .from('group_members')
         .select('*, profiles (*)')
         .eq('group_id', groupId);
 
-      if (groupMembers) {
-        setMembers(
-          groupMembers.map((m: any) => ({
-            ...m,
-            profile: m.profiles,
-          }))
-        );
+      let loadedMembers: GroupMember[] = [];
+      if (groupMembers && groupMembers.length > 0) {
+        loadedMembers = groupMembers.map((m: any) => ({
+          ...m,
+          profile: m.profiles || (m.user_id === user.id ? user : undefined),
+        }));
       }
+
+      // Guarantee current user is always included in members list
+      const currentGroupObj = groups.find((g) => g.id === groupId);
+      const isCreator = currentGroupObj?.created_by === user.id;
+      if (!loadedMembers.some((m) => m.user_id === user.id)) {
+        const selfMember: GroupMember = {
+          id: `mem_${user.id}`,
+          group_id: groupId,
+          user_id: user.id,
+          role: isCreator ? 'admin' : 'member',
+          joined_at: new Date().toISOString(),
+          profile: user,
+        };
+        loadedMembers.unshift(selfMember);
+
+        supabase.from('group_members').upsert(
+          {
+            group_id: groupId,
+            user_id: user.id,
+            role: isCreator ? 'admin' : 'member',
+          },
+          { onConflict: 'group_id,user_id' }
+        ).then(() => {});
+      }
+
+      setMembers(loadedMembers);
+      localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(loadedMembers));
 
       const { data: avData } = await supabase
         .from('daily_availability')
@@ -298,12 +351,21 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         .eq('group_id', groupId);
 
       if (avData) {
-        setAvailabilities(
-          avData.map((a: any) => ({
-            ...a,
-            profile: a.profiles,
-          }))
-        );
+        const groupAvail = avData.map((a: any) => ({
+          ...a,
+          profile: a.profiles,
+        }));
+
+        setAvailabilities((prev) => {
+          const merged = [...groupAvail];
+          for (const item of prev) {
+            if (!merged.some((m) => m.date === item.date && m.user_id === item.user_id)) {
+              merged.push(item);
+            }
+          }
+          localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(merged));
+          return merged;
+        });
       }
     } catch (err) {
       console.error('Error fetching group details:', err);
