@@ -251,3 +251,19 @@ BEGIN
   );
 END;
 $$;
+
+-- 9. Automatic Creator Membership Trigger on gym_groups insert
+CREATE OR REPLACE FUNCTION public.handle_new_group()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.group_members (group_id, user_id, role)
+  VALUES (NEW.id, NEW.created_by, 'admin')
+  ON CONFLICT (group_id, user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_gym_group_created ON public.gym_groups;
+CREATE TRIGGER on_gym_group_created
+  AFTER INSERT ON public.gym_groups
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_group();
