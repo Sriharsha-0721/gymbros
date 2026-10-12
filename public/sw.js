@@ -1,9 +1,10 @@
-// GymBros Service Worker
-const CACHE_NAME = 'gymbros-static-v1';
+// GYMCREW Service Worker
+const CACHE_NAME = 'gymcrew-static-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/favicon.svg',
+  '/gym-icon.png',
+  '/favicon.png',
   '/manifest.json'
 ];
 
