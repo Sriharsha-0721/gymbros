@@ -46,6 +46,9 @@ const STORAGE_KEY_AVAILABILITIES = 'gymbros_availabilities';
 const STORAGE_KEY_WORKOUT_LOGS = 'gymbros_workout_logs';
 const STORAGE_KEY_ACTIVE_GROUP_ID = 'gymbros_active_group_id';
 
+const isUUID = (str?: string): boolean =>
+  Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+
 export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const configured = isSupabaseConfigured();
@@ -67,16 +70,44 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     async function loadData() {
       setLoading(true);
 
-      if (configured && supabase) {
+      const isLiveSupabaseUser = configured && supabase && isUUID(user?.id);
+
+      if (isLiveSupabaseUser && supabase) {
         try {
-          // Fetch user's groups
+          // Fetch user's groups from Supabase
           const { data: memberRows } = await supabase
             .from('group_members')
             .select('group_id, gym_groups (*)')
             .eq('user_id', user!.id);
 
-          const userGroups: GymGroup[] =
+          let userGroups: GymGroup[] =
             memberRows?.map((r: any) => r.gym_groups).filter(Boolean) || [];
+
+          // If a new live user has no group yet, auto-create their initial squad
+          if (userGroups.length === 0) {
+            const squadName = `${user!.display_name?.split(' ')[0] || user!.username}'s Gym Crew`;
+            const randomCode = 'GYM-' + Math.floor(1000 + Math.random() * 9000);
+            
+            const { data: createdGroup } = await supabase
+              .from('gym_groups')
+              .insert({
+                name: squadName,
+                description: 'Private fitness squad',
+                invite_code: randomCode,
+                created_by: user!.id,
+              })
+              .select()
+              .single();
+
+            if (createdGroup) {
+              await supabase.from('group_members').insert({
+                group_id: createdGroup.id,
+                user_id: user!.id,
+                role: 'admin',
+              });
+              userGroups = [createdGroup];
+            }
+          }
 
           setGroups(userGroups);
 
@@ -182,15 +213,36 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     preferredTime?: string,
     notes?: string
   ): Promise<boolean> => {
-    if (!user || !activeGroup) return false;
+    if (!user) return false;
 
+    // Resolve or fallback to active group
+    let currentActive = activeGroup;
+    if (!currentActive) {
+      if (groups.length > 0) {
+        currentActive = groups[0];
+      } else {
+        // Fallback demo squad
+        const fallbackGroup: GymGroup = {
+          id: isUUID(user.id) ? undefined as any : 'grp_morning_crew_01',
+          name: 'My Gym Squad',
+          invite_code: 'BRO-1000',
+          created_by: user.id,
+          created_at: new Date().toISOString(),
+        };
+        currentActive = fallbackGroup;
+      }
+    }
+
+    const targetGroupId = currentActive.id;
+
+    // Optimistically update local state immediately
     const existingIndex = availabilities.findIndex(
-      (a) => a.group_id === activeGroup.id && a.user_id === user.id && a.date === date
+      (a) => a.user_id === user.id && a.date === date && (!targetGroupId || a.group_id === targetGroupId)
     );
 
     const updatedEntry: DailyAvailability = {
       id: existingIndex >= 0 ? availabilities[existingIndex].id : `av_${Date.now()}`,
-      group_id: activeGroup.id,
+      group_id: targetGroupId,
       user_id: user.id,
       date,
       status,
@@ -211,17 +263,21 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setAvailabilities(newAvailabilities);
     localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(newAvailabilities));
 
-    if (configured && supabase) {
+    // If real Supabase UUID user and group exist, sync to Cloud PostgreSQL
+    if (configured && supabase && isUUID(user.id) && isUUID(targetGroupId)) {
       try {
-        const { error } = await supabase.from('daily_availability').upsert({
-          group_id: activeGroup.id,
-          user_id: user.id,
-          date,
-          status,
-          preferred_time: status === 'rest' ? null : preferredTime,
-          notes: notes || null,
-          updated_at: new Date().toISOString(),
-        });
+        const { error } = await supabase.from('daily_availability').upsert(
+          {
+            group_id: targetGroupId,
+            user_id: user.id,
+            date,
+            status,
+            preferred_time: status === 'rest' ? null : preferredTime,
+            notes: notes || null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'group_id,user_id,date' }
+        );
         if (error) console.error('Supabase availability update error:', error);
       } catch (err) {
         console.error('Supabase availability update failed:', err);
@@ -235,11 +291,9 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const createGroup = async (name: string, description?: string): Promise<GymGroup | null> => {
     if (!user) return null;
 
-    // Generate clean 8-character invite code
-    const randomCode =
-      'GYM-' + Math.floor(1000 + Math.random() * 9000);
+    const randomCode = 'GYM-' + Math.floor(1000 + Math.random() * 9000);
 
-    const newGroup: GymGroup = {
+    let newGroup: GymGroup = {
       id: `grp_${Date.now()}`,
       name: name.trim(),
       description: description?.trim(),
@@ -248,6 +302,34 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       created_at: new Date().toISOString(),
       member_count: 1,
     };
+
+    if (configured && supabase && isUUID(user.id)) {
+      try {
+        const { data: dbGroup, error: groupErr } = await supabase
+          .from('gym_groups')
+          .insert({
+            name: newGroup.name,
+            description: newGroup.description,
+            invite_code: newGroup.invite_code,
+            created_by: user.id,
+          })
+          .select()
+          .single();
+
+        if (groupErr) throw groupErr;
+
+        if (dbGroup) {
+          newGroup = dbGroup;
+          await supabase.from('group_members').insert({
+            group_id: dbGroup.id,
+            user_id: user.id,
+            role: 'admin',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to create group in Supabase:', err);
+      }
+    }
 
     const newMember: GroupMember = {
       id: `mem_${Date.now()}`,
@@ -268,33 +350,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(updatedGroups));
     localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(updatedMembers));
 
-    if (configured && supabase) {
-      try {
-        const { data: dbGroup, error: groupErr } = await supabase
-          .from('gym_groups')
-          .insert({
-            name: newGroup.name,
-            description: newGroup.description,
-            invite_code: newGroup.invite_code,
-            created_by: user.id,
-          })
-          .select()
-          .single();
-
-        if (groupErr) throw groupErr;
-
-        if (dbGroup) {
-          await supabase.from('group_members').insert({
-            group_id: dbGroup.id,
-            user_id: user.id,
-            role: 'admin',
-          });
-        }
-      } catch (err) {
-        console.error('Failed to create group in Supabase:', err);
-      }
-    }
-
     return newGroup;
   };
 
@@ -303,14 +358,35 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user) return false;
     const cleanCode = inviteCode.trim().toUpperCase();
 
-    // Check if code matches an existing group
-    const targetGroup = groups.find((g) => g.invite_code.toUpperCase() === cleanCode);
+    let targetGroup = groups.find((g) => g.invite_code.toUpperCase() === cleanCode);
+
+    if (!targetGroup && configured && supabase && isUUID(user.id)) {
+      try {
+        const { data: dbGroup } = await supabase
+          .from('gym_groups')
+          .select('*')
+          .eq('invite_code', cleanCode)
+          .single();
+
+        if (dbGroup) {
+          targetGroup = dbGroup;
+          await supabase.from('group_members').insert({
+            group_id: dbGroup.id,
+            user_id: user.id,
+            role: 'member',
+          });
+        }
+      } catch (err) {
+        console.error('Failed to join group in Supabase:', err);
+      }
+    }
+
     if (!targetGroup) {
       return false;
     }
 
     const alreadyMember = members.some(
-      (m) => m.group_id === targetGroup.id && m.user_id === user.id
+      (m) => m.group_id === targetGroup!.id && m.user_id === user.id
     );
 
     if (!alreadyMember) {
@@ -324,8 +400,14 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       };
 
       const updatedMembers = [...members, newMember];
+      const updatedGroups = groups.some((g) => g.id === targetGroup!.id)
+        ? groups
+        : [...groups, targetGroup];
+
       setMembers(updatedMembers);
+      setGroups(updatedGroups);
       localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(updatedMembers));
+      localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(updatedGroups));
     }
 
     setActiveGroupId(targetGroup.id);
@@ -346,6 +428,18 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(updatedGroups));
     localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(updatedMembers));
+
+    if (configured && supabase && isUUID(user.id) && isUUID(groupId)) {
+      try {
+        await supabase
+          .from('group_members')
+          .delete()
+          .eq('group_id', groupId)
+          .eq('user_id', user.id);
+      } catch (err) {
+        console.error('Failed to leave group in Supabase:', err);
+      }
+    }
 
     if (updatedGroups.length > 0) {
       setActiveGroupId(updatedGroups[0].id);
@@ -382,11 +476,11 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setWorkoutLogs(updatedLogs);
     localStorage.setItem(STORAGE_KEY_WORKOUT_LOGS, JSON.stringify(updatedLogs));
 
-    if (configured && supabase) {
+    if (configured && supabase && isUUID(user.id)) {
       try {
         await supabase.from('workout_logs').insert({
           user_id: user.id,
-          group_id: activeGroup?.id,
+          group_id: isUUID(activeGroup?.id) ? activeGroup?.id : null,
           date: newLog.date,
           workout_type: newLog.workout_type,
           duration_minutes: newLog.duration_minutes,
@@ -406,7 +500,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setWorkoutLogs(updatedLogs);
     localStorage.setItem(STORAGE_KEY_WORKOUT_LOGS, JSON.stringify(updatedLogs));
 
-    if (configured && supabase) {
+    if (configured && supabase && isUUID(user?.id) && isUUID(logId)) {
       try {
         await supabase.from('workout_logs').delete().eq('id', logId);
       } catch (err) {
@@ -418,10 +512,10 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const getUserTodayAvailability = () => {
-    if (!user || !activeGroup) return undefined;
+    if (!user) return undefined;
     const today = getTodayKey();
     return availabilities.find(
-      (a) => a.group_id === activeGroup.id && a.user_id === user.id && a.date === today
+      (a) => a.user_id === user.id && a.date === today && (!activeGroup || a.group_id === activeGroup.id)
     );
   };
 

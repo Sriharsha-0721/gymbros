@@ -135,7 +135,7 @@ const MainAppContent: React.FC = () => {
 
       {/* Main Top Header */}
       <Header
-        onOpenSetPlan={() => handleOpenSetPlanForDate(todayKey)}
+        onOpenSetPlan={() => handleOpenSetPlanForDate(dashboardDate)}
         onOpenGroupModal={() => setIsGroupSwitcherOpen(true)}
         onOpenProfileModal={() => setIsProfileOpen(true)}
         currentTab={currentTab}
