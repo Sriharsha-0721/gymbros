@@ -80,11 +80,11 @@ const MainAppContent: React.FC = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#090a0f] flex flex-col items-center justify-center text-white">
-        <div className="w-12 h-12 rounded-2xl bg-[#12141c] border border-[#232838] p-2 flex items-center justify-center animate-pulse">
-          <img src="/favicon.svg" alt="GymBros" className="w-8 h-8" />
+        <div className="w-12 h-12 rounded-2xl bg-[#12141c] border border-[#232838] p-1.5 flex items-center justify-center animate-pulse">
+          <img src="/gym-icon.png" alt="GYMCREW" className="w-9 h-9 rounded-xl object-cover" />
         </div>
         <p className="mt-4 text-xs font-bold text-slate-400 tracking-wider uppercase">
-          Loading GymBros...
+          Loading GYMCREW...
         </p>
       </div>
     );

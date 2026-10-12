@@ -35,7 +35,7 @@ export const InviteShareModal: React.FC<InviteShareModalProps> = ({
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const shareText = `Join my gym squad "${group.name}" on GymBros to coordinate workout times and stay consistent! Code: ${group.invite_code}`;
+  const shareText = `Join my gym squad "${group.name}" on GYMCREW to coordinate workout times and stay consistent! Code: ${group.invite_code}`;
   const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(
     shareText + '\n' + inviteLink
   )}`;
@@ -44,7 +44,7 @@ export const InviteShareModal: React.FC<InviteShareModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Invite Gym Bros"
+      title="Invite Squad Members"
       description={`Share the access code for "${group.name}".`}
     >
       <div className="space-y-4">

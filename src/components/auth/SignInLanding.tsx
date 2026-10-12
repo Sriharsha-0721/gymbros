@@ -25,12 +25,12 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) 
       {/* Top Brand Header */}
       <header className="max-w-6xl w-full mx-auto px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#12141c] border border-[#232838] p-1 flex items-center justify-center">
-            <img src="/favicon.svg" alt="GymBros Emblem" className="w-8 h-8 select-none" />
+          <div className="w-10 h-10 rounded-xl bg-[#12141c] border border-[#232838] p-0.5 flex items-center justify-center overflow-hidden">
+            <img src="/gym-icon.png" alt="GYMCREW Emblem" className="w-9 h-9 rounded-lg select-none object-cover" />
           </div>
           <div>
             <span className="font-extrabold text-xl tracking-tight text-white font-heading">
-              GYM<span className="text-[#ccff00]">BROS</span>
+              GYM<span className="text-[#ccff00]">CREW</span>
             </span>
             <p className="text-[10px] text-slate-400 font-medium">Gym Partner & Availability Tracker</p>
           </div>
@@ -47,8 +47,8 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) 
       {/* Hero Section */}
       <main className="max-w-4xl mx-auto px-6 py-12 flex flex-col items-center text-center">
         {/* Emblem Highlight */}
-        <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#181b26] to-[#0c0d12] border border-[#2a3144] p-3 shadow-2xl flex items-center justify-center mb-6 lime-border-glow">
-          <img src="/favicon.svg" alt="GymBros" className="w-14 h-14" />
+        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#181b26] to-[#0c0d12] border border-[#2a3144] p-1 shadow-2xl flex items-center justify-center mb-6 lime-border-glow overflow-hidden">
+          <img src="/gym-icon.png" alt="GYMCREW" className="w-full h-full rounded-2xl object-cover" />
         </div>
 
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#ccff00]/10 border border-[#ccff00]/30 text-[#ccff00] text-xs font-bold uppercase tracking-wider mb-4">
@@ -147,7 +147,7 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) 
 
       {/* Footer */}
       <footer className="py-6 border-t border-[#161a25] text-center text-xs text-slate-500">
-        GymBros • Built for gym discipline, friendships, and consistency.
+        GYMCREW • Built for gym discipline, friendships, and consistency.
       </footer>
     </div>
   );

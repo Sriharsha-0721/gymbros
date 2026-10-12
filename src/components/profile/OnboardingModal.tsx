@@ -33,7 +33,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => {}} // Non-dismissible until username is set
-      title="Welcome to GymBros! 💪"
+      title="Welcome to GYMCREW! 💪"
       description="Select a unique username so your gym friends can recognize you."
     >
       <form onSubmit={handleSubmit} className="space-y-4">

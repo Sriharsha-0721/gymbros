@@ -21,7 +21,7 @@ export const AuthPromptBanner: React.FC = () => {
               DEMO MODE ACTIVE
             </span>
             <p className="text-slate-300 truncate font-medium">
-              You are exploring GymBros with live local state! All buttons, scheduling, and streak tracking are fully interactive.
+              You are exploring GYMCREW with live local state! All buttons, scheduling, and streak tracking are fully interactive.
             </p>
           </div>
 

@@ -1,6 +1,6 @@
-# GymBros — Gym Partner & Availability Tracker
+# GYMCREW — Gym Partner & Availability Tracker
 
-GymBros is a modern, mobile-first web application designed for private groups of friends who train together. It helps gym squads coordinate workout schedules, discover matching daily availability, mark intentional rest days, and build consistency streaks together.
+GYMCREW is a modern, mobile-first web application designed for private groups of friends who train together. It helps gym squads coordinate workout schedules, discover matching daily availability, mark intentional rest days, and build consistency streaks together.
 
 Built with **React 19, TypeScript, Vite, Tailwind CSS, Supabase (PostgreSQL, Auth, Realtime)**, and installable as a **Progressive Web App (PWA)**.
 

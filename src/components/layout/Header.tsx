@@ -31,13 +31,13 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setCurrentTab('dashboard')}
             className="flex items-center gap-2.5 cursor-pointer group"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#12141c] border border-[#232838] p-1 flex items-center justify-center group-hover:border-[#ccff00]/60 transition-all duration-200">
-              <img src="/favicon.svg" alt="GymBros Emblem" className="w-8 h-8 select-none" />
+            <div className="w-10 h-10 rounded-xl bg-[#12141c] border border-[#232838] p-0.5 flex items-center justify-center group-hover:border-[#ccff00]/60 transition-all duration-200 overflow-hidden">
+              <img src="/gym-icon.png" alt="GYMCREW Emblem" className="w-9 h-9 rounded-lg select-none object-cover" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="font-extrabold text-xl tracking-tight text-white font-heading">
-                  GYM<span className="text-[#ccff00]">BROS</span>
+                  GYM<span className="text-[#ccff00]">CREW</span>
                 </span>
                 {!isConfigured && (
                   <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#1a1f2c] text-slate-400 border border-[#2b3347]">
