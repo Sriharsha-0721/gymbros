@@ -372,6 +372,45 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Live Realtime synchronization for squad members and daily availability
+  useEffect(() => {
+    if (!configured || !supabase || !activeGroupId || !isUUID(activeGroupId)) return;
+
+    const channel = supabase
+      .channel(`squad-realtime-${activeGroupId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'group_members',
+          filter: `group_id=eq.${activeGroupId}`,
+        },
+        () => {
+          fetchGroupDetails(activeGroupId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'daily_availability',
+          filter: `group_id=eq.${activeGroupId}`,
+        },
+        () => {
+          fetchGroupDetails(activeGroupId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [activeGroupId, configured]);
+
   const activeGroup = groups.find((g) => g.id === activeGroupId) || groups[0] || null;
 
   const setActiveGroupId = (id: string) => {

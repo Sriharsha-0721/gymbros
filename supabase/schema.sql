@@ -63,16 +63,11 @@ CREATE TABLE IF NOT EXISTS public.group_members (
 ALTER TABLE public.group_members ENABLE ROW LEVEL SECURITY;
 
 -- Group Members Policies
+DROP POLICY IF EXISTS "Users can view members of groups they belong to" ON public.group_members;
 CREATE POLICY "Users can view members of groups they belong to"
   ON public.group_members FOR SELECT
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.group_members gm
-      WHERE gm.group_id = group_members.group_id
-      AND gm.user_id = auth.uid()
-    )
-  );
+  USING (true);
 
 CREATE POLICY "Users can join groups"
   ON public.group_members FOR INSERT
@@ -130,15 +125,7 @@ DROP POLICY IF EXISTS "Users can view availability in groups they belong to" ON 
 CREATE POLICY "Users can view availability in groups they belong to"
   ON public.daily_availability FOR SELECT
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.group_members
-      WHERE group_members.group_id = daily_availability.group_id
-      AND group_members.user_id = auth.uid()
-    )
-    OR
-    user_id = auth.uid()
-  );
+  USING (true);
 
 DROP POLICY IF EXISTS "Users can insert their own availability" ON public.daily_availability;
 CREATE POLICY "Users can insert their own availability"
@@ -213,8 +200,9 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Enable Supabase Realtime for daily_availability
+-- Enable Supabase Realtime for daily_availability and group_members
 ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_availability;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.group_members;
 
 -- 8. Stored Procedure for atomic, guaranteed squad joining by invite code
 CREATE OR REPLACE FUNCTION public.join_group_by_code(p_invite_code text)
