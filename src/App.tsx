@@ -68,11 +68,14 @@ const MainAppContent: React.FC = () => {
   const [isGroupSwitcherOpen, setIsGroupSwitcherOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
+  const [initialJoinCode, setInitialJoinCode] = useState('');
+
   // Check URL query parameters for join code (e.g. ?join=BRO-6942)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const joinCode = params.get('join');
     if (joinCode) {
+      setInitialJoinCode(joinCode.trim().toUpperCase());
       setIsJoinGroupOpen(true);
     }
   }, []);
@@ -319,10 +322,14 @@ const MainAppContent: React.FC = () => {
       {/* 4. Join Group Modal */}
       <JoinGroupModal
         isOpen={isJoinGroupOpen}
-        onClose={() => setIsJoinGroupOpen(false)}
+        onClose={() => {
+          setIsJoinGroupOpen(false);
+          setInitialJoinCode('');
+        }}
         onJoin={async (code) => {
           return await joinGroup(code);
         }}
+        initialCode={initialJoinCode}
       />
 
       {/* 5. Invite & Share Modal */}

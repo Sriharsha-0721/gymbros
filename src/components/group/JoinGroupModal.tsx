@@ -7,16 +7,24 @@ interface JoinGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onJoin: (inviteCode: string) => Promise<boolean>;
+  initialCode?: string;
 }
 
 export const JoinGroupModal: React.FC<JoinGroupModalProps> = ({
   isOpen,
   onClose,
   onJoin,
+  initialCode = '',
 }) => {
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(initialCode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (initialCode) {
+      setCode(initialCode.trim().toUpperCase());
+    }
+  }, [initialCode, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

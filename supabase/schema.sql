@@ -85,18 +85,13 @@ CREATE POLICY "Users can leave groups"
   USING (auth.uid() = user_id);
 
 -- Gym Groups Policies
+DROP POLICY IF EXISTS "Users can view groups they belong to" ON public.gym_groups;
+DROP POLICY IF EXISTS "Users can view groups they belong to or lookup by invite code" ON public.gym_groups;
+
 CREATE POLICY "Users can view groups they belong to or lookup by invite code"
   ON public.gym_groups FOR SELECT
   TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM public.group_members
-      WHERE group_members.group_id = gym_groups.id
-      AND group_members.user_id = auth.uid()
-    )
-    OR
-    invite_code IS NOT NULL -- Allows safe invite code resolution when joining
-  );
+  USING (true);
 
 CREATE POLICY "Users can create gym groups"
   ON public.gym_groups FOR INSERT
@@ -213,3 +208,39 @@ CREATE TRIGGER on_auth_user_created
 
 -- Enable Supabase Realtime for daily_availability
 ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_availability;
+
+-- 8. Stored Procedure for atomic, guaranteed squad joining by invite code
+CREATE OR REPLACE FUNCTION public.join_group_by_code(p_invite_code text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_group public.gym_groups%ROWTYPE;
+  v_user_id uuid := auth.uid();
+BEGIN
+  IF v_user_id IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Not authenticated');
+  END IF;
+
+  -- Lookup group by invite code (case-insensitive and trimmed)
+  SELECT * INTO v_group
+  FROM public.gym_groups
+  WHERE UPPER(TRIM(invite_code)) = UPPER(TRIM(p_invite_code))
+  LIMIT 1;
+
+  IF v_group.id IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Invalid invite code or squad not found');
+  END IF;
+
+  -- Add user as member if not already joined
+  INSERT INTO public.group_members (group_id, user_id, role)
+  VALUES (v_group.id, v_user_id, 'member')
+  ON CONFLICT (group_id, user_id) DO NOTHING;
+
+  RETURN json_build_object(
+    'success', true,
+    'group', row_to_json(v_group)
+  );
+END;
+$$;

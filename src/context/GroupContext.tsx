@@ -199,11 +199,49 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadData();
   }, [user?.id, configured]);
 
+  const fetchGroupDetails = async (groupId: string) => {
+    if (!configured || !supabase || !isUUID(groupId)) return;
+    try {
+      const { data: groupMembers } = await supabase
+        .from('group_members')
+        .select('*, profiles (*)')
+        .eq('group_id', groupId);
+
+      if (groupMembers) {
+        setMembers(
+          groupMembers.map((m: any) => ({
+            ...m,
+            profile: m.profiles,
+          }))
+        );
+      }
+
+      const { data: avData } = await supabase
+        .from('daily_availability')
+        .select('*, profiles (*)')
+        .eq('group_id', groupId);
+
+      if (avData) {
+        setAvailabilities(
+          avData.map((a: any) => ({
+            ...a,
+            profile: a.profiles,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error('Error fetching group details:', err);
+    }
+  };
+
   const activeGroup = groups.find((g) => g.id === activeGroupId) || groups[0] || null;
 
   const setActiveGroupId = (id: string) => {
     setActiveGroupIdState(id);
     localStorage.setItem(STORAGE_KEY_ACTIVE_GROUP_ID, id);
+    if (configured && supabase && isUUID(id)) {
+      fetchGroupDetails(id);
+    }
   };
 
   // Set or update availability for a given date
@@ -358,26 +396,48 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     if (!user) return false;
     const cleanCode = inviteCode.trim().toUpperCase();
 
-    let targetGroup = groups.find((g) => g.invite_code.toUpperCase() === cleanCode);
+    let targetGroup: GymGroup | null =
+      groups.find((g) => g.invite_code.toUpperCase() === cleanCode) || null;
 
     if (!targetGroup && configured && supabase && isUUID(user.id)) {
+      // 1. Try secure stored procedure RPC first (bypasses any RLS constraints)
       try {
-        const { data: dbGroup } = await supabase
-          .from('gym_groups')
-          .select('*')
-          .eq('invite_code', cleanCode)
-          .single();
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('join_group_by_code', {
+          p_invite_code: cleanCode,
+        });
 
-        if (dbGroup) {
-          targetGroup = dbGroup;
-          await supabase.from('group_members').insert({
-            group_id: dbGroup.id,
-            user_id: user.id,
-            role: 'member',
-          });
+        if (!rpcErr && rpcRes && rpcRes.success && rpcRes.group) {
+          targetGroup = rpcRes.group;
         }
-      } catch (err) {
-        console.error('Failed to join group in Supabase:', err);
+      } catch (rpcErr) {
+        console.warn('RPC join_group_by_code fallback:', rpcErr);
+      }
+
+      // 2. Direct query fallback
+      if (!targetGroup) {
+        try {
+          const { data: dbGroup, error: groupErr } = await supabase
+            .from('gym_groups')
+            .select('*')
+            .ilike('invite_code', cleanCode)
+            .maybeSingle();
+
+          if (dbGroup) {
+            targetGroup = dbGroup;
+            await supabase.from('group_members').upsert(
+              {
+                group_id: dbGroup.id,
+                user_id: user.id,
+                role: 'member',
+              },
+              { onConflict: 'group_id,user_id' }
+            );
+          } else {
+            console.warn('No group found for code:', cleanCode, groupErr);
+          }
+        } catch (err) {
+          console.error('Failed direct Supabase join:', err);
+        }
       }
     }
 
@@ -385,6 +445,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return false;
     }
 
+    // Update local state
     const alreadyMember = members.some(
       (m) => m.group_id === targetGroup!.id && m.user_id === user.id
     );
@@ -407,6 +468,12 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setMembers(updatedMembers);
       setGroups(updatedGroups);
       localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(updatedMembers));
+      localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(updatedGroups));
+    } else {
+      const updatedGroups = groups.some((g) => g.id === targetGroup!.id)
+        ? groups
+        : [...groups, targetGroup];
+      setGroups(updatedGroups);
       localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(updatedGroups));
     }
 
