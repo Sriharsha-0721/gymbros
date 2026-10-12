@@ -14,6 +14,7 @@ interface AuthContextType {
   completeOnboarding: (username: string, displayName: string) => Promise<boolean>;
   error: string | null;
   clearError: () => void;
+  enableDemoMode: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -201,6 +202,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const enableDemoMode = () => {
+    setUser(INITIAL_USER);
+    localStorage.setItem(LOCAL_STORAGE_KEY_USER, JSON.stringify(INITIAL_USER));
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -214,6 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         completeOnboarding,
         error,
         clearError: () => setError(null),
+        enableDemoMode,
       }}
     >
       {children}

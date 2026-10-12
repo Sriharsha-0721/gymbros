@@ -21,13 +21,23 @@ import { InviteShareModal } from './components/group/InviteShareModal';
 import { GroupSwitcherModal } from './components/group/GroupSwitcherModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { OnboardingModal } from './components/profile/OnboardingModal';
+import { SignInLanding } from './components/auth/SignInLanding';
 import { calculateStreakStats } from './lib/streakUtils';
 import { getTodayKey, formatFullDate } from './lib/dateUtils';
 import { GymStatus } from './types';
 import { Sparkles, Calendar, Flame, Users, Dumbbell, ShieldCheck } from 'lucide-react';
 
 const MainAppContent: React.FC = () => {
-  const { user, loading: authLoading, needsOnboarding, completeOnboarding, updateProfile, signOut, isConfigured } = useAuth();
+  const {
+    user,
+    loading: authLoading,
+    needsOnboarding,
+    completeOnboarding,
+    updateProfile,
+    signOut,
+    isConfigured,
+    enableDemoMode,
+  } = useAuth();
   const {
     groups,
     activeGroup,
@@ -77,6 +87,11 @@ const MainAppContent: React.FC = () => {
         </p>
       </div>
     );
+  }
+
+  // If user is not authenticated yet, render sign in landing
+  if (!user) {
+    return <SignInLanding onContinueDemo={enableDemoMode} />;
   }
 
   const todayKey = getTodayKey();
