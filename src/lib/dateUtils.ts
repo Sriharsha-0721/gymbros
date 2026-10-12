@@ -22,6 +22,13 @@ export function getTodayKey(): string {
   return formatDateKey(new Date());
 }
 
+// Get tomorrow's local date key
+export function getTomorrowKey(): string {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  return formatDateKey(d);
+}
+
 // Format date key into friendly string e.g. "Monday, Oct 12"
 export function formatFriendlyDate(dateKey: string): string {
   const date = parseDateKey(dateKey);

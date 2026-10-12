@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { GymStatus } from '../../types';
-import { Sun, Sunset, Moon, Coffee, HelpCircle, Clock, FileText } from 'lucide-react';
-import { formatFriendlyDate, getTodayKey } from '../../lib/dateUtils';
+import { Sun, Sunset, Moon, Coffee, HelpCircle, Clock, FileText, Calendar } from 'lucide-react';
+import { formatFriendlyDate, getTodayKey, getTomorrowKey } from '../../lib/dateUtils';
 
 interface QuickAvailabilityModalProps {
   isOpen: boolean;
@@ -24,6 +24,10 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
   initialNotes = '',
   onSave,
 }) => {
+  const todayKey = getTodayKey();
+  const tomorrowKey = getTomorrowKey();
+
+  const [activeDateKey, setActiveDateKey] = useState<string>(dateKey);
   const [status, setStatus] = useState<GymStatus>(initialStatus);
   const [preferredTime, setPreferredTime] = useState(initialTime);
   const [notes, setNotes] = useState(initialNotes);
@@ -31,17 +35,18 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      setActiveDateKey(dateKey || todayKey);
       setStatus(initialStatus || 'morning');
       setPreferredTime(initialTime || '');
       setNotes(initialNotes || '');
     }
-  }, [isOpen, initialStatus, initialTime, initialNotes]);
+  }, [isOpen, dateKey, initialStatus, initialTime, initialNotes, todayKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     await onSave(
-      dateKey,
+      activeDateKey,
       status,
       status === 'rest' || status === 'undecided' ? undefined : preferredTime.trim() || undefined,
       notes.trim() || undefined
@@ -97,10 +102,49 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Plan for ${formatFriendlyDate(dateKey)}`}
+      title={`Plan for ${formatFriendlyDate(activeDateKey)}`}
       description="Choose your workout window and coordinate with the squad."
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Date Selector Row */}
+        <div>
+          <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+            <Calendar size={13} className="text-[#ccff00]" />
+            Select Date to Plan
+          </label>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveDateKey(todayKey)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                activeDateKey === todayKey
+                  ? 'bg-[#ccff00] text-[#090a0f] border-[#ccff00]'
+                  : 'bg-[#161a25] text-slate-400 border-[#262c3e] hover:text-white'
+              }`}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveDateKey(tomorrowKey)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                activeDateKey === tomorrowKey
+                  ? 'bg-[#ccff00] text-[#090a0f] border-[#ccff00]'
+                  : 'bg-[#161a25] text-slate-400 border-[#262c3e] hover:text-white'
+              }`}
+            >
+              Tomorrow
+            </button>
+            <input
+              type="date"
+              value={activeDateKey}
+              min={todayKey}
+              onChange={(e) => e.target.value && setActiveDateKey(e.target.value)}
+              className="flex-1 px-3 py-1.5 rounded-xl bg-[#161a25] border border-[#262c3e] text-white text-xs focus:outline-none focus:border-[#ccff00]"
+            />
+          </div>
+        </div>
+
         {/* Status Option Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {statusOptions.map((opt) => {

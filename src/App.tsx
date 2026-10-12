@@ -56,6 +56,7 @@ const MainAppContent: React.FC = () => {
 
   // Navigation state: 'dashboard' | 'calendar' | 'progress' | 'group'
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  const [dashboardDate, setDashboardDate] = useState<string>(getTodayKey());
 
   // Modals state
   const [isSetPlanOpen, setIsSetPlanOpen] = useState(false);
@@ -95,8 +96,10 @@ const MainAppContent: React.FC = () => {
   }
 
   const todayKey = getTodayKey();
-  const todayUserAvailability = getUserTodayAvailability();
-  const todayGroupAvailabilities = availabilities.filter((a) => a.date === todayKey);
+  const activeUserAvailability = availabilities.find(
+    (a) => a.date === dashboardDate && a.user_id === user?.id
+  );
+  const activeGroupAvailabilities = availabilities.filter((a) => a.date === dashboardDate);
 
   const hasCompletedWorkoutToday = workoutLogs.some((l) => l.date === todayKey);
 
@@ -109,7 +112,7 @@ const MainAppContent: React.FC = () => {
   );
 
   const handleQuickSelectStatus = async (status: GymStatus) => {
-    await setAvailability(todayKey, status);
+    await setAvailability(dashboardDate, status);
   };
 
   const handleOpenSetPlanForDate = (dateKey: string) => {
@@ -167,10 +170,12 @@ const MainAppContent: React.FC = () => {
               )}
             </div>
 
-            {/* 1. Today's Personal Gym Status Card */}
+            {/* 1. Today & Tomorrow Personal Gym Status Card */}
             <PersonalStatusCard
-              todayAvailability={todayUserAvailability}
-              onOpenSetPlan={() => handleOpenSetPlanForDate(todayKey)}
+              selectedDate={dashboardDate}
+              onSelectDate={setDashboardDate}
+              currentAvailability={activeUserAvailability}
+              onOpenSetPlan={() => handleOpenSetPlanForDate(dashboardDate)}
               onQuickSelectStatus={handleQuickSelectStatus}
               hasCompletedWorkoutToday={hasCompletedWorkoutToday}
               onOpenCheckIn={() => setIsCheckInOpen(true)}
@@ -180,12 +185,12 @@ const MainAppContent: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Squad Schedule Breakdown
+                  Squad Schedule Breakdown • {dashboardDate === todayKey ? 'Today' : 'Tomorrow'}
                 </h3>
                 <span className="text-[11px] text-slate-500">Tap to filter</span>
               </div>
               <SlotSummaryCards
-                availabilities={todayGroupAvailabilities}
+                availabilities={activeGroupAvailabilities}
                 currentUserId={user?.id}
                 onSelectSlotFilter={() => setCurrentTab('calendar')}
               />
@@ -193,15 +198,15 @@ const MainAppContent: React.FC = () => {
 
             {/* 3. Matching Lifters (Who can I join?) */}
             <MatchingPartnersList
-              todayAvailabilities={todayGroupAvailabilities}
+              todayAvailabilities={activeGroupAvailabilities}
               currentUserProfile={user!}
-              currentUserAvailability={todayUserAvailability}
-              onOpenSetPlan={() => handleOpenSetPlanForDate(todayKey)}
+              currentUserAvailability={activeUserAvailability}
+              onOpenSetPlan={() => handleOpenSetPlanForDate(dashboardDate)}
               onInviteFriend={() => setIsInviteOpen(true)}
             />
 
             {/* 4. Rest Day Friends (Separated from workouts) */}
-            <RestDayBuddiesList todayAvailabilities={todayGroupAvailabilities} />
+            <RestDayBuddiesList todayAvailabilities={activeGroupAvailabilities} />
 
             {/* 5. Upcoming Schedule Compact Preview */}
             <UpcomingSchedulePreview
@@ -296,7 +301,7 @@ const MainAppContent: React.FC = () => {
         isOpen={isCheckInOpen}
         onClose={() => setIsCheckInOpen(false)}
         dateKey={todayKey}
-        defaultWorkoutType={todayUserAvailability?.notes || 'Gym Workout'}
+        defaultWorkoutType={activeUserAvailability?.notes || 'Gym Workout'}
         onComplete={async (data) => {
           return await logWorkout(data);
         }}
