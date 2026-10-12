@@ -74,42 +74,73 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (isLiveSupabaseUser && supabase) {
         try {
-          // Fetch user's groups from Supabase
+          // Fetch user's created groups directly (bulletproof, no join failure)
+          const { data: ownedGroups } = await supabase
+            .from('gym_groups')
+            .select('*')
+            .eq('created_by', user!.id);
+
+          // Fetch groups user has joined as a member
           const { data: memberRows } = await supabase
             .from('group_members')
-            .select('group_id, gym_groups (*)')
+            .select('group_id')
             .eq('user_id', user!.id);
 
-          let userGroups: GymGroup[] =
-            memberRows?.map((r: any) => r.gym_groups).filter(Boolean) || [];
-
-          // If a new live user has no group yet, auto-create their initial squad
-          if (userGroups.length === 0) {
-            const squadName = `${user!.display_name?.split(' ')[0] || user!.username}'s Gym Crew`;
-            const randomCode = 'GYM-' + Math.floor(1000 + Math.random() * 9000);
-            
-            const { data: createdGroup } = await supabase
+          const memberGroupIds = memberRows?.map((m: any) => m.group_id).filter(Boolean) || [];
+          let memberGroups: GymGroup[] = [];
+          if (memberGroupIds.length > 0) {
+            const { data: mgData } = await supabase
               .from('gym_groups')
-              .insert({
-                name: squadName,
-                description: 'Private fitness squad',
-                invite_code: randomCode,
-                created_by: user!.id,
-              })
-              .select()
-              .single();
+              .select('*')
+              .in('id', memberGroupIds);
+            if (mgData) memberGroups = mgData;
+          }
 
-            if (createdGroup) {
-              await supabase.from('group_members').insert({
-                group_id: createdGroup.id,
-                user_id: user!.id,
-                role: 'admin',
-              });
-              userGroups = [createdGroup];
+          // Combine and deduplicate
+          const groupMap = new Map<string, GymGroup>();
+          (ownedGroups || []).forEach((g: GymGroup) => groupMap.set(g.id, g));
+          (memberGroups || []).forEach((g: GymGroup) => groupMap.set(g.id, g));
+          let userGroups = Array.from(groupMap.values());
+
+          // If user truly has 0 squads in database, check local cache or create ONE squad permanently
+          if (userGroups.length === 0) {
+            const cachedGroupsStr = localStorage.getItem(STORAGE_KEY_GROUPS);
+            const cachedGroups: GymGroup[] = cachedGroupsStr ? JSON.parse(cachedGroupsStr) : [];
+            const validCached = cachedGroups.find((g) => isUUID(g.id));
+
+            if (validCached) {
+              userGroups = [validCached];
+            } else {
+              const squadName = `${user!.display_name?.split(' ')[0] || user!.username}'s Gym Crew`;
+              const randomCode = 'GYM-' + Math.floor(1000 + Math.random() * 9000);
+              
+              const { data: createdGroup } = await supabase
+                .from('gym_groups')
+                .insert({
+                  name: squadName,
+                  description: 'Private fitness squad',
+                  invite_code: randomCode,
+                  created_by: user!.id,
+                })
+                .select()
+                .single();
+
+              if (createdGroup) {
+                await supabase.from('group_members').upsert(
+                  {
+                    group_id: createdGroup.id,
+                    user_id: user!.id,
+                    role: 'admin',
+                  },
+                  { onConflict: 'group_id,user_id' }
+                );
+                userGroups = [createdGroup];
+              }
             }
           }
 
           setGroups(userGroups);
+          localStorage.setItem(STORAGE_KEY_GROUPS, JSON.stringify(userGroups));
 
           const savedGroupId = localStorage.getItem(STORAGE_KEY_ACTIVE_GROUP_ID);
           const defaultGroupId =
