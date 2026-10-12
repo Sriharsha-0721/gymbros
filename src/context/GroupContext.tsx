@@ -102,40 +102,87 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           (memberGroups || []).forEach((g: GymGroup) => groupMap.set(g.id, g));
           let userGroups = Array.from(groupMap.values());
 
-          // If user truly has 0 squads in database, check local cache or create ONE squad permanently
-          if (userGroups.length === 0) {
-            const cachedGroupsStr = localStorage.getItem(STORAGE_KEY_GROUPS);
-            const cachedGroups: GymGroup[] = cachedGroupsStr ? JSON.parse(cachedGroupsStr) : [];
-            const validCached = cachedGroups.find((g) => isUUID(g.id));
+          // Check for pending join code from URL or pre-auth storage
+          const pendingCode =
+            new URLSearchParams(window.location.search).get('join')?.trim().toUpperCase() ||
+            localStorage.getItem('pending_join_code')?.trim().toUpperCase();
 
-            if (validCached) {
-              userGroups = [validCached];
-            } else {
-              const squadName = `${user!.display_name?.split(' ')[0] || user!.username}'s Gym Crew`;
-              const randomCode = 'GYM-' + Math.floor(1000 + Math.random() * 9000);
-              
-              const { data: createdGroup } = await supabase
-                .from('gym_groups')
-                .insert({
-                  name: squadName,
-                  description: 'Private fitness squad',
-                  invite_code: randomCode,
-                  created_by: user!.id,
-                })
-                .select()
-                .single();
-
-              if (createdGroup) {
-                await supabase.from('group_members').upsert(
-                  {
-                    group_id: createdGroup.id,
-                    user_id: user!.id,
-                    role: 'admin',
-                  },
-                  { onConflict: 'group_id,user_id' }
-                );
-                userGroups = [createdGroup];
+          if (pendingCode) {
+            let joinedGroup: GymGroup | null = null;
+            try {
+              const { data: rpcRes } = await supabase.rpc('join_group_by_code', {
+                p_invite_code: pendingCode,
+              });
+              if (rpcRes?.success && rpcRes.group) {
+                joinedGroup = rpcRes.group;
               }
+            } catch (rpcErr) {
+              console.warn('RPC join error:', rpcErr);
+            }
+
+            if (!joinedGroup) {
+              try {
+                const { data: dbGroup } = await supabase
+                  .from('gym_groups')
+                  .select('*')
+                  .ilike('invite_code', pendingCode)
+                  .maybeSingle();
+
+                if (dbGroup) {
+                  joinedGroup = dbGroup;
+                  await supabase.from('group_members').upsert(
+                    {
+                      group_id: dbGroup.id,
+                      user_id: user!.id,
+                      role: 'member',
+                    },
+                    { onConflict: 'group_id,user_id' }
+                  );
+                }
+              } catch (err) {
+                console.error('Direct join error:', err);
+              }
+            }
+
+            if (joinedGroup) {
+              groupMap.set(joinedGroup.id, joinedGroup);
+              userGroups = Array.from(groupMap.values());
+              localStorage.setItem(STORAGE_KEY_ACTIVE_GROUP_ID, joinedGroup.id);
+              localStorage.removeItem('pending_join_code');
+              if (window.history.replaceState) {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('join');
+                window.history.replaceState({}, document.title, url.toString());
+              }
+            }
+          }
+
+          // If user truly has 0 squads in database, create ONE personal squad
+          if (userGroups.length === 0) {
+            const squadName = `${user!.display_name?.split(' ')[0] || user!.username}'s Gym Crew`;
+            const randomCode = 'GYM-' + Math.floor(1000 + Math.random() * 9000);
+            
+            const { data: createdGroup } = await supabase
+              .from('gym_groups')
+              .insert({
+                name: squadName,
+                description: 'Private fitness squad',
+                invite_code: randomCode,
+                created_by: user!.id,
+              })
+              .select()
+              .single();
+
+            if (createdGroup) {
+              await supabase.from('group_members').upsert(
+                {
+                  group_id: createdGroup.id,
+                  user_id: user!.id,
+                  role: 'admin',
+                },
+                { onConflict: 'group_id,user_id' }
+              );
+              userGroups = [createdGroup];
             }
           }
 
@@ -152,6 +199,7 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             localStorage.setItem(STORAGE_KEY_ACTIVE_GROUP_ID, defaultGroupId);
           }
 
+          let loadedMembers: GroupMember[] = [];
           if (defaultGroupId && isUUID(defaultGroupId)) {
             // Fetch group members
             const { data: groupMembers } = await supabase
@@ -159,7 +207,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               .select('*, profiles (*)')
               .eq('group_id', defaultGroupId);
 
-            let loadedMembers: GroupMember[] = [];
             if (groupMembers && groupMembers.length > 0) {
               loadedMembers = groupMembers.map((m: any) => ({
                 ...m,
@@ -196,24 +243,51 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(loadedMembers));
           }
 
-          // Fetch availabilities: both group-wide AND user-specific
+          // Fetch availabilities: query for ALL squad members
           let loadedAvailabilities: DailyAvailability[] = [];
 
           if (defaultGroupId && isUUID(defaultGroupId)) {
-            const { data: avData } = await supabase
-              .from('daily_availability')
-              .select('*, profiles (*)')
-              .eq('group_id', defaultGroupId);
+            const memberUserIds = loadedMembers.map((m) => m.user_id).filter(Boolean);
 
-            if (avData) {
-              loadedAvailabilities = avData.map((a: any) => ({
-                ...a,
-                profile: a.profiles,
-              }));
+            let avQuery = supabase.from('daily_availability').select('*, profiles (*)');
+            if (memberUserIds.length > 0) {
+              avQuery = avQuery.or(`group_id.eq.${defaultGroupId},user_id.in.(${memberUserIds.join(',')})`);
+            } else {
+              avQuery = avQuery.eq('group_id', defaultGroupId);
+            }
+
+            const { data: avData, error: avErr } = await avQuery;
+            if (avErr) {
+              console.warn('Availabilities query fallback:', avErr);
+              const { data: fbData } = await supabase
+                .from('daily_availability')
+                .select('*, profiles (*)')
+                .eq('group_id', defaultGroupId);
+              if (fbData) {
+                loadedAvailabilities = fbData.map((a: any) => ({
+                  ...a,
+                  profile: a.profiles || loadedMembers.find((m) => m.user_id === a.user_id)?.profile,
+                }));
+              }
+            } else if (avData) {
+              const avMap = new Map<string, DailyAvailability>();
+              for (const a of avData) {
+                const key = `${a.user_id}_${a.date}`;
+                const prof =
+                  a.profiles ||
+                  loadedMembers.find((m) => m.user_id === a.user_id)?.profile ||
+                  (a.user_id === user!.id ? user : undefined);
+                const item: DailyAvailability = { ...a, profile: prof };
+                const existing = avMap.get(key);
+                if (!existing || new Date(a.updated_at).getTime() >= new Date(existing.updated_at).getTime()) {
+                  avMap.set(key, item);
+                }
+              }
+              loadedAvailabilities = Array.from(avMap.values());
             }
           }
 
-          // Also fetch user's own availability directly so personal status is never lost
+          // Also merge user's own availability directly so personal status is never lost
           const { data: userAvData } = await supabase
             .from('daily_availability')
             .select('*, profiles (*)')
@@ -225,9 +299,12 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 (a) => a.date === uAv.date && a.user_id === uAv.user_id
               );
               if (idx >= 0) {
-                loadedAvailabilities[idx] = { ...uAv, profile: uAv.profiles };
+                loadedAvailabilities[idx] = {
+                  ...uAv,
+                  profile: uAv.profiles || loadedAvailabilities[idx].profile,
+                };
               } else {
-                loadedAvailabilities.push({ ...uAv, profile: uAv.profiles });
+                loadedAvailabilities.push({ ...uAv, profile: uAv.profiles || user! });
               }
             }
           }
@@ -345,28 +422,58 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setMembers(loadedMembers);
       localStorage.setItem(STORAGE_KEY_MEMBERS, JSON.stringify(loadedMembers));
 
-      const { data: avData } = await supabase
-        .from('daily_availability')
-        .select('*, profiles (*)')
-        .eq('group_id', groupId);
-
-      if (avData) {
-        const groupAvail = avData.map((a: any) => ({
-          ...a,
-          profile: a.profiles,
-        }));
-
-        setAvailabilities((prev) => {
-          const merged = [...groupAvail];
-          for (const item of prev) {
-            if (!merged.some((m) => m.date === item.date && m.user_id === item.user_id)) {
-              merged.push(item);
-            }
-          }
-          localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(merged));
-          return merged;
-        });
+      const memberUserIds = loadedMembers.map((m) => m.user_id).filter(Boolean);
+      let avQuery = supabase.from('daily_availability').select('*, profiles (*)');
+      if (memberUserIds.length > 0) {
+        avQuery = avQuery.or(`group_id.eq.${groupId},user_id.in.(${memberUserIds.join(',')})`);
+      } else {
+        avQuery = avQuery.eq('group_id', groupId);
       }
+
+      const { data: avData, error: avErr } = await avQuery;
+      let groupAvail: DailyAvailability[] = [];
+
+      if (!avErr && avData) {
+        const avMap = new Map<string, DailyAvailability>();
+        for (const a of avData) {
+          const key = `${a.user_id}_${a.date}`;
+          const prof =
+            a.profiles ||
+            loadedMembers.find((m) => m.user_id === a.user_id)?.profile ||
+            (a.user_id === user.id ? user : undefined);
+          const item: DailyAvailability = { ...a, profile: prof };
+          const existing = avMap.get(key);
+          if (!existing || new Date(a.updated_at).getTime() >= new Date(existing.updated_at).getTime()) {
+            avMap.set(key, item);
+          }
+        }
+        groupAvail = Array.from(avMap.values());
+      } else {
+        const { data: fbData } = await supabase
+          .from('daily_availability')
+          .select('*, profiles (*)')
+          .eq('group_id', groupId);
+        if (fbData) {
+          groupAvail = fbData.map((a: any) => ({
+            ...a,
+            profile: a.profiles || loadedMembers.find((m) => m.user_id === a.user_id)?.profile,
+          }));
+        }
+      }
+
+      setAvailabilities((prev) => {
+        const mergedMap = new Map<string, DailyAvailability>();
+        groupAvail.forEach((item) => mergedMap.set(`${item.user_id}_${item.date}`, item));
+        prev.forEach((item) => {
+          const key = `${item.user_id}_${item.date}`;
+          if (!mergedMap.has(key)) {
+            mergedMap.set(key, item);
+          }
+        });
+        const result = Array.from(mergedMap.values());
+        localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(result));
+        return result;
+      });
     } catch (err) {
       console.error('Error fetching group details:', err);
     }
@@ -384,7 +491,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           event: '*',
           schema: 'public',
           table: 'group_members',
-          filter: `group_id=eq.${activeGroupId}`,
         },
         () => {
           fetchGroupDetails(activeGroupId);
@@ -396,7 +502,6 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           event: '*',
           schema: 'public',
           table: 'daily_availability',
-          filter: `group_id=eq.${activeGroupId}`,
         },
         () => {
           fetchGroupDetails(activeGroupId);

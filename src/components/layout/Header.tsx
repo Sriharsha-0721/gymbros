@@ -55,12 +55,17 @@ export const Header: React.FC<HeaderProps> = ({
           {activeGroup && (
             <button
               onClick={onOpenGroupModal}
-              className="ml-2 hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#141620] hover:bg-[#1a1e2b] border border-[#222736] text-xs font-semibold text-slate-200 transition-colors"
+              className="ml-1 sm:ml-2 flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-full bg-[#141620] hover:bg-[#1a1e2b] border border-[#222736] text-xs font-semibold text-slate-200 transition-colors shrink-0"
+              title="Switch Gym Squad"
             >
-              <Users size={13} className="text-[#ccff00]" />
-              <span className="max-w-[140px] truncate">{activeGroup.name}</span>
-              {groups.length > 1 && <span className="text-[10px] text-slate-500">({groups.length})</span>}
-              <ChevronDown size={13} className="text-slate-400" />
+              <Users size={13} className="text-[#ccff00] shrink-0" />
+              <span className="max-w-[85px] sm:max-w-[140px] truncate">{activeGroup.name}</span>
+              {groups.length > 1 && (
+                <span className="text-[10px] font-bold text-[#ccff00] bg-[#ccff00]/10 px-1.5 py-0.2 rounded-full border border-[#ccff00]/25">
+                  {groups.length}
+                </span>
+              )}
+              <ChevronDown size={12} className="text-slate-400 shrink-0" />
             </button>
           )}
         </div>

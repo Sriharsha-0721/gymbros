@@ -10,6 +10,17 @@ interface SignInLandingProps {
 export const SignInLanding: React.FC<SignInLandingProps> = () => {
   const { signInWithGoogle, error } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string>('');
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('join') || localStorage.getItem('pending_join_code');
+    if (code) {
+      const clean = code.trim().toUpperCase();
+      setInviteCode(clean);
+      localStorage.setItem('pending_join_code', clean);
+    }
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setSigningIn(true);
@@ -61,6 +72,26 @@ export const SignInLanding: React.FC<SignInLandingProps> = () => {
         <p className="text-base sm:text-lg text-slate-400 mt-4 max-w-xl">
           Coordinate morning, evening, and night workout sessions with your friends, discover compatible partners, mark intentional rest days, and build consistency streaks together.
         </p>
+
+        {/* Invite Banner if invited */}
+        {inviteCode && (
+          <div className="mt-6 mb-2 p-3.5 rounded-2xl bg-[#141824] border border-[#ccff00]/40 text-left flex items-center gap-3 animate-in fade-in max-w-sm w-full">
+            <div className="w-10 h-10 rounded-xl bg-[#ccff00]/15 text-[#ccff00] flex items-center justify-center shrink-0">
+              <Users size={20} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-bold text-[#ccff00] uppercase tracking-wider">Squad Invite</span>
+                <span className="text-[10px] font-mono font-bold bg-[#202638] px-1.5 py-0.2 rounded text-slate-200">
+                  {inviteCode}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 font-semibold truncate">
+                Sign in to join your gym bro's squad!
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Google Sign-In Action */}
         <div className="mt-8 w-full max-w-sm space-y-3">

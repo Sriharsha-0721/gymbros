@@ -200,9 +200,23 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- Enable Supabase Realtime for daily_availability and group_members
-ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_availability;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.group_members;
+-- Enable Supabase Realtime for daily_availability and group_members safely
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'daily_availability'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.daily_availability;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables 
+    WHERE pubname = 'supabase_realtime' AND tablename = 'group_members'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.group_members;
+  END IF;
+END $$;
 
 -- 8. Stored Procedure for atomic, guaranteed squad joining by invite code
 CREATE OR REPLACE FUNCTION public.join_group_by_code(p_invite_code text)

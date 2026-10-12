@@ -73,9 +73,11 @@ const MainAppContent: React.FC = () => {
   // Check URL query parameters for join code (e.g. ?join=BRO-6942)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const joinCode = params.get('join');
+    const joinCode = params.get('join') || localStorage.getItem('pending_join_code');
     if (joinCode) {
-      setInitialJoinCode(joinCode.trim().toUpperCase());
+      const clean = joinCode.trim().toUpperCase();
+      localStorage.setItem('pending_join_code', clean);
+      setInitialJoinCode(clean);
       setIsJoinGroupOpen(true);
     }
   }, []);
@@ -102,7 +104,10 @@ const MainAppContent: React.FC = () => {
   const activeUserAvailability = availabilities.find(
     (a) => a.date === dashboardDate && a.user_id === user?.id
   );
-  const activeGroupAvailabilities = availabilities.filter((a) => a.date === dashboardDate);
+  const memberIdSet = new Set(members.map((m) => m.user_id));
+  const activeGroupAvailabilities = availabilities.filter(
+    (a) => a.date === dashboardDate && (memberIdSet.has(a.user_id) || a.user_id === user?.id)
+  );
 
   const hasCompletedWorkoutToday = workoutLogs.some((l) => l.date === todayKey);
 
@@ -269,6 +274,9 @@ const MainAppContent: React.FC = () => {
               group={activeGroup}
               members={members}
               currentUser={user!}
+              allGroups={groups}
+              onSelectGroup={(id) => setActiveGroupId(id)}
+              onOpenGroupSwitcher={() => setIsGroupSwitcherOpen(true)}
               onOpenCreateGroup={() => setIsCreateGroupOpen(true)}
               onOpenJoinGroup={() => setIsJoinGroupOpen(true)}
               onOpenInviteModal={() => setIsInviteOpen(true)}

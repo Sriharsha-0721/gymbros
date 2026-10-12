@@ -58,7 +58,12 @@ export const GroupSwitcherModal: React.FC<GroupSwitcherModalProps> = ({
                     <Users size={16} />
                   </div>
                   <div>
-                    <span className="text-sm font-bold text-white block">{g.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-bold text-white block">{g.name}</span>
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#1e2436] text-[#ccff00] border border-[#2b334d]">
+                        {g.invite_code}
+                      </span>
+                    </div>
                     {g.description && (
                       <span className="text-xs text-slate-400 block truncate max-w-[220px]">
                         {g.description}

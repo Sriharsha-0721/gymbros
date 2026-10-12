@@ -122,7 +122,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
     if (configured && supabase) {
       try {
-        const redirectUrl = `${window.location.origin}/`;
+        const params = new URLSearchParams(window.location.search);
+        const joinFromUrl = params.get('join');
+        const pendingCode = joinFromUrl || localStorage.getItem('pending_join_code');
+        if (pendingCode) {
+          localStorage.setItem('pending_join_code', pendingCode.trim().toUpperCase());
+        }
+
+        const redirectUrl = pendingCode
+          ? `${window.location.origin}/?join=${encodeURIComponent(pendingCode.trim().toUpperCase())}`
+          : `${window.location.origin}/`;
+
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {

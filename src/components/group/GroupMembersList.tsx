@@ -20,6 +20,9 @@ interface GroupMembersListProps {
   group: GymGroup | null;
   members: GroupMember[];
   currentUser: UserProfile;
+  allGroups?: GymGroup[];
+  onSelectGroup?: (id: string) => void;
+  onOpenGroupSwitcher?: () => void;
   onOpenCreateGroup: () => void;
   onOpenJoinGroup: () => void;
   onOpenInviteModal: () => void;
@@ -30,6 +33,9 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
   group,
   members,
   currentUser,
+  allGroups = [],
+  onSelectGroup,
+  onOpenGroupSwitcher,
   onOpenCreateGroup,
   onOpenJoinGroup,
   onOpenInviteModal,
@@ -69,6 +75,41 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* Multi-Squad Quick Switcher if user has 2+ squads */}
+      {allGroups && allGroups.length > 1 && (
+        <div className="p-3 sm:p-3.5 rounded-2xl bg-[#131622] border border-[#22273a] flex items-center justify-between gap-3 overflow-x-auto">
+          <div className="flex items-center gap-1.5 shrink-0 text-xs font-bold text-slate-400">
+            <Users size={14} className="text-[#ccff00]" />
+            <span>Your Squads ({allGroups.length}):</span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {allGroups.map((g) => {
+              const isSelected = g.id === group.id;
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => onSelectGroup?.(g.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#ccff00] text-[#090a0f] font-black shadow-md shadow-[#ccff00]/10'
+                      : 'bg-[#1b1f2e] text-slate-300 hover:text-white border border-[#272e42]'
+                  }`}
+                >
+                  <span className="truncate max-w-[120px]">{g.name}</span>
+                  <span
+                    className={`text-[10px] font-mono px-1 rounded ${
+                      isSelected ? 'bg-black/20 text-black font-extrabold' : 'bg-black/40 text-slate-400'
+                    }`}
+                  >
+                    {g.invite_code}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Group Banner Card */}
       <Card className="p-5 sm:p-6 bg-gradient-to-br from-[#151825] to-[#0e1017] border-[#22273a] relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -125,7 +166,19 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
 
         {/* Group Management Toolbar */}
         <div className="mt-4 pt-4 border-t border-[#1c2233] flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {allGroups && allGroups.length > 1 && (
+              <>
+                <button
+                  onClick={onOpenGroupSwitcher}
+                  className="flex items-center gap-1 text-xs font-semibold text-[#ccff00] hover:underline transition-colors"
+                >
+                  <Users size={13} />
+                  <span>Switch Squad ({allGroups.length})</span>
+                </button>
+                <span className="text-slate-600">•</span>
+              </>
+            )}
             <button
               onClick={onOpenCreateGroup}
               className="flex items-center gap-1 text-xs font-semibold text-slate-300 hover:text-white transition-colors"
