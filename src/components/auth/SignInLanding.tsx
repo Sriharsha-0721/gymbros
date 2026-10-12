@@ -4,10 +4,10 @@ import { Dumbbell, Users, Calendar, Flame, Shield, ArrowRight, Loader2 } from 'l
 import { INITIAL_USER } from '../../lib/mockData';
 
 interface SignInLandingProps {
-  onContinueDemo: () => void;
+  onContinueDemo?: () => void;
 }
 
-export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) => {
+export const SignInLanding: React.FC<SignInLandingProps> = () => {
   const { signInWithGoogle, error } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
 
@@ -36,12 +36,10 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) 
           </div>
         </div>
 
-        <button
-          onClick={onContinueDemo}
-          className="text-xs font-bold text-slate-400 hover:text-white px-3 py-1.5 rounded-xl hover:bg-white/5 transition-colors"
-        >
-          Explore Demo Mode →
-        </button>
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161a25] border border-[#232a3b] text-slate-400 text-xs font-semibold">
+          <Shield size={13} className="text-[#ccff00]" />
+          <span>v1.0 Live</span>
+        </div>
       </header>
 
       {/* Hero Section */}
@@ -69,12 +67,12 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) 
           <button
             onClick={handleGoogleSignIn}
             disabled={signingIn}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-sm shadow-xl active:scale-[0.98] transition-all disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-3 px-6 py-4 rounded-2xl bg-white hover:bg-slate-100 text-slate-900 font-extrabold text-base shadow-xl active:scale-[0.98] transition-all disabled:opacity-60 cursor-pointer"
           >
             {signingIn ? (
-              <Loader2 size={18} className="animate-spin text-slate-900" />
+              <Loader2 size={20} className="animate-spin text-slate-900" />
             ) : (
-              <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -96,13 +94,9 @@ export const SignInLanding: React.FC<SignInLandingProps> = ({ onContinueDemo }) 
             <span>Sign in with Google</span>
           </button>
 
-          <button
-            onClick={onContinueDemo}
-            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-[#161a25] hover:bg-[#1d2232] border border-[#262c3e] text-slate-300 font-bold text-xs transition-colors"
-          >
-            <span>Explore Demo Mode</span>
-            <ArrowRight size={13} />
-          </button>
+          <p className="text-[11px] text-slate-500 font-medium">
+            Fast, secure login. Syncs your availability and squads automatically.
+          </p>
 
           {error && (
             <p className="text-xs text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">

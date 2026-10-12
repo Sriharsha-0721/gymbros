@@ -60,10 +60,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             } else if (profile) {
               setUser(profile);
             }
+          } else {
+            setUser(null);
+            localStorage.removeItem(LOCAL_STORAGE_KEY_USER);
           }
         } catch (err: any) {
           console.error('Supabase auth initialization error:', err);
           setError(err.message || 'Failed to authenticate');
+          setUser(null);
         } finally {
           setLoading(false);
         }
@@ -83,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
             } else {
               setUser(null);
+              localStorage.removeItem(LOCAL_STORAGE_KEY_USER);
             }
           }
         );
@@ -91,18 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           authListener?.subscription.unsubscribe();
         };
       } else {
-        // Fallback to local storage or initial demo user
-        const stored = localStorage.getItem(LOCAL_STORAGE_KEY_USER);
-        if (stored) {
-          try {
-            setUser(JSON.parse(stored));
-          } catch {
-            setUser(INITIAL_USER);
-          }
-        } else {
-          setUser(INITIAL_USER);
-          localStorage.setItem(LOCAL_STORAGE_KEY_USER, JSON.stringify(INITIAL_USER));
-        }
+        setUser(null);
         setLoading(false);
       }
     }

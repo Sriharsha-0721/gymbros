@@ -92,7 +92,7 @@ const MainAppContent: React.FC = () => {
 
   // If user is not authenticated yet, render sign in landing
   if (!user) {
-    return <SignInLanding onContinueDemo={enableDemoMode} />;
+    return <SignInLanding />;
   }
 
   const todayKey = getTodayKey();
