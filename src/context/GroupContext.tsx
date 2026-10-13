@@ -291,7 +291,8 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           const { data: userAvData } = await supabase
             .from('daily_availability')
             .select('*, profiles (*)')
-            .eq('user_id', user!.id);
+            .eq('user_id', user!.id)
+            .order('updated_at', { ascending: true });
 
           if (userAvData) {
             for (const uAv of userAvData) {
@@ -299,10 +300,14 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 (a) => a.date === uAv.date && a.user_id === uAv.user_id
               );
               if (idx >= 0) {
-                loadedAvailabilities[idx] = {
-                  ...uAv,
-                  profile: uAv.profiles || loadedAvailabilities[idx].profile,
-                };
+                const currentUpdated = new Date(loadedAvailabilities[idx].updated_at || 0).getTime();
+                const newUpdated = new Date(uAv.updated_at || 0).getTime();
+                if (newUpdated >= currentUpdated) {
+                  loadedAvailabilities[idx] = {
+                    ...uAv,
+                    profile: uAv.profiles || loadedAvailabilities[idx].profile || user!,
+                  };
+                }
               } else {
                 loadedAvailabilities.push({ ...uAv, profile: uAv.profiles || user! });
               }
@@ -315,7 +320,19 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             try {
               const parsedLocal: DailyAvailability[] = JSON.parse(localStoredAvail);
               for (const item of parsedLocal) {
-                if (!loadedAvailabilities.some((m) => m.date === item.date && m.user_id === item.user_id)) {
+                const idx = loadedAvailabilities.findIndex(
+                  (m) => m.date === item.date && m.user_id === item.user_id
+                );
+                if (idx >= 0) {
+                  const dbUpdated = new Date(loadedAvailabilities[idx].updated_at || 0).getTime();
+                  const localUpdated = new Date(item.updated_at || 0).getTime();
+                  if (localUpdated > dbUpdated) {
+                    loadedAvailabilities[idx] = {
+                      ...loadedAvailabilities[idx],
+                      ...item,
+                    };
+                  }
+                } else {
                   loadedAvailabilities.push(item);
                 }
               }
@@ -466,8 +483,15 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         groupAvail.forEach((item) => mergedMap.set(`${item.user_id}_${item.date}`, item));
         prev.forEach((item) => {
           const key = `${item.user_id}_${item.date}`;
-          if (!mergedMap.has(key)) {
+          const existing = mergedMap.get(key);
+          if (!existing) {
             mergedMap.set(key, item);
+          } else {
+            const existingTime = new Date(existing.updated_at || 0).getTime();
+            const prevTime = new Date(item.updated_at || 0).getTime();
+            if (prevTime > existingTime) {
+              mergedMap.set(key, item);
+            }
           }
         });
         const result = Array.from(mergedMap.values());
@@ -582,20 +606,61 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (validGroupId) {
         try {
-          const { error } = await supabase.from('daily_availability').upsert(
-            {
-              group_id: validGroupId,
-              user_id: user.id,
-              date,
-              status,
-              preferred_time: status === 'rest' ? null : preferredTime,
-              notes: notes || null,
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'group_id,user_id,date' }
-          );
-          if (error) {
-            console.error('Supabase availability update error:', error.message, error.code, error.details);
+          const payload = {
+            group_id: validGroupId,
+            user_id: user.id,
+            date,
+            status,
+            preferred_time: status === 'rest' ? null : preferredTime || null,
+            notes: notes || null,
+            updated_at: new Date().toISOString(),
+          };
+
+          // Check if an availability row already exists in Supabase for this user and date
+          const { data: existingDbRows } = await supabase
+            .from('daily_availability')
+            .select('id, group_id')
+            .eq('user_id', user.id)
+            .eq('date', date);
+
+          if (existingDbRows && existingDbRows.length > 0) {
+            // Direct UPDATE by primary key to guarantee update success
+            const targetId = existingDbRows[0].id;
+            const { error: updateErr } = await supabase
+              .from('daily_availability')
+              .update(payload)
+              .eq('id', targetId);
+
+            if (updateErr) {
+              console.error('Update by ID error, attempting fallback update:', updateErr);
+              await supabase
+                .from('daily_availability')
+                .update(payload)
+                .eq('user_id', user.id)
+                .eq('date', date);
+            }
+
+            // Remove any accidental legacy duplicates for this date
+            if (existingDbRows.length > 1) {
+              const extraIds = existingDbRows.slice(1).map((r: any) => r.id);
+              await supabase.from('daily_availability').delete().in('id', extraIds);
+            }
+          } else {
+            // Insert fresh record
+            const { data: insertedRow, error: insertErr } = await supabase
+              .from('daily_availability')
+              .insert(payload)
+              .select()
+              .maybeSingle();
+
+            if (insertErr) {
+              console.warn('Insert error, attempting upsert fallback:', insertErr);
+              await supabase
+                .from('daily_availability')
+                .upsert(payload, { onConflict: 'group_id,user_id,date' });
+            } else if (insertedRow) {
+              updatedEntry.id = insertedRow.id;
+            }
           }
         } catch (err) {
           console.error('Supabase availability update failed:', err);
