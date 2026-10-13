@@ -105,6 +105,20 @@ CREATE POLICY "Group admins can update their group"
     )
   );
 
+DROP POLICY IF EXISTS "Group creators and admins can delete their group" ON public.gym_groups;
+CREATE POLICY "Group creators and admins can delete their group"
+  ON public.gym_groups FOR DELETE
+  TO authenticated
+  USING (
+    created_by = auth.uid() OR
+    EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_members.group_id = gym_groups.id
+      AND group_members.user_id = auth.uid()
+      AND group_members.role = 'admin'
+    )
+  );
+
 -- 5. Daily Availability Table
 CREATE TABLE IF NOT EXISTS public.daily_availability (
   id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,

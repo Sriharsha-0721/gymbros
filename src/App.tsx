@@ -73,13 +73,18 @@ const MainAppContent: React.FC = () => {
   // Check URL query parameters for join code (e.g. ?join=BRO-6942)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const joinCode = params.get('join') || localStorage.getItem('pending_join_code');
+    const joinCode = params.get('join');
     if (joinCode) {
       const clean = joinCode.trim().toUpperCase();
-      localStorage.setItem('pending_join_code', clean);
       setInitialJoinCode(clean);
       setIsJoinGroupOpen(true);
+      // Clean query parameter immediately so page refreshes don't re-trigger join
+      if (window.history.replaceState) {
+        const cleanUrl = window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
     }
+    localStorage.removeItem('pending_join_code');
   }, []);
 
   if (authLoading) {

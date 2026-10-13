@@ -74,38 +74,28 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       if (isLiveSupabaseUser && supabase) {
         try {
-          // Fetch user's created groups directly (bulletproof, no join failure)
-          const { data: ownedGroups } = await supabase
-            .from('gym_groups')
-            .select('*')
-            .eq('created_by', user!.id);
-
-          // Fetch groups user has joined as a member
+          // Fetch groups user has joined as an active member or admin
           const { data: memberRows } = await supabase
             .from('group_members')
             .select('group_id')
             .eq('user_id', user!.id);
 
           const memberGroupIds = memberRows?.map((m: any) => m.group_id).filter(Boolean) || [];
-          let memberGroups: GymGroup[] = [];
+          let userGroups: GymGroup[] = [];
           if (memberGroupIds.length > 0) {
             const { data: mgData } = await supabase
               .from('gym_groups')
               .select('*')
               .in('id', memberGroupIds);
-            if (mgData) memberGroups = mgData;
+            if (mgData) userGroups = mgData;
           }
 
           // Combine and deduplicate
           const groupMap = new Map<string, GymGroup>();
-          (ownedGroups || []).forEach((g: GymGroup) => groupMap.set(g.id, g));
-          (memberGroups || []).forEach((g: GymGroup) => groupMap.set(g.id, g));
-          let userGroups = Array.from(groupMap.values());
+          userGroups.forEach((g: GymGroup) => groupMap.set(g.id, g));
 
-          // Check for pending join code from URL or pre-auth storage
-          const pendingCode =
-            new URLSearchParams(window.location.search).get('join')?.trim().toUpperCase() ||
-            localStorage.getItem('pending_join_code')?.trim().toUpperCase();
+          // Check for pending join code from active URL query
+          const pendingCode = new URLSearchParams(window.location.search).get('join')?.trim().toUpperCase();
 
           if (pendingCode) {
             let joinedGroup: GymGroup | null = null;
@@ -148,12 +138,13 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               groupMap.set(joinedGroup.id, joinedGroup);
               userGroups = Array.from(groupMap.values());
               localStorage.setItem(STORAGE_KEY_ACTIVE_GROUP_ID, joinedGroup.id);
-              localStorage.removeItem('pending_join_code');
-              if (window.history.replaceState) {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('join');
-                window.history.replaceState({}, document.title, url.toString());
-              }
+            }
+
+            // Immediately clear pending code and clean URL so refreshes never re-join
+            localStorage.removeItem('pending_join_code');
+            if (window.history.replaceState) {
+              const cleanUrl = window.location.pathname;
+              window.history.replaceState({}, document.title, cleanUrl);
             }
           }
 
@@ -831,6 +822,16 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const leaveGroup = async (groupId: string): Promise<boolean> => {
     if (!user) return false;
 
+    // Remove any pending join code from storage and address bar
+    localStorage.removeItem('pending_join_code');
+    if (window.history.replaceState) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    }
+
+    const leavingGroup = groups.find((g) => g.id === groupId);
+    const isCreator = leavingGroup?.created_by === user.id;
+
     const updatedGroups = groups.filter((g) => g.id !== groupId);
     const updatedMembers = members.filter(
       (m) => !(m.group_id === groupId && m.user_id === user.id)
@@ -844,11 +845,36 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     if (configured && supabase && isUUID(user.id) && isUUID(groupId)) {
       try {
-        await supabase
+        // 1. Delete membership from group_members
+        const { error: delMemErr } = await supabase
           .from('group_members')
           .delete()
           .eq('group_id', groupId)
           .eq('user_id', user.id);
+
+        if (delMemErr) {
+          console.error('Failed to delete membership in Supabase:', delMemErr);
+        }
+
+        // 2. If user was creator: check if other members exist or delete empty squad
+        if (isCreator) {
+          const { data: otherMembers } = await supabase
+            .from('group_members')
+            .select('user_id')
+            .eq('group_id', groupId)
+            .neq('user_id', user.id);
+
+          if (!otherMembers || otherMembers.length === 0) {
+            // Delete empty group from gym_groups
+            await supabase.from('gym_groups').delete().eq('id', groupId);
+          } else {
+            // Transfer creator ownership to next active member
+            await supabase
+              .from('gym_groups')
+              .update({ created_by: otherMembers[0].user_id })
+              .eq('id', groupId);
+          }
+        }
       } catch (err) {
         console.error('Failed to leave group in Supabase:', err);
       }
