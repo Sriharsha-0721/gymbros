@@ -293,3 +293,237 @@ DROP TRIGGER IF EXISTS on_gym_group_created ON public.gym_groups;
 CREATE TRIGGER on_gym_group_created
   AFTER INSERT ON public.gym_groups
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_group();
+
+-- ==============================================================================
+-- 10. GYMCREW 2.0 ADDITIVE MIGRATIONS
+-- (Zero destructive changes, PostgreSQL DATE types, strict RLS)
+-- ==============================================================================
+
+-- User Private Fitness Profile
+CREATE TABLE IF NOT EXISTS public.fitness_profiles (
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE PRIMARY KEY,
+  height_cm NUMERIC(5,2),
+  weight_kg NUMERIC(5,2),
+  age INTEGER CHECK (age BETWEEN 13 AND 120),
+  experience_level TEXT CHECK (experience_level IN ('beginner', 'intermediate', 'advanced')) DEFAULT 'beginner',
+  equipment TEXT[] DEFAULT ARRAY['full_gym'],
+  primary_goal TEXT NOT NULL,
+  secondary_goals TEXT[] DEFAULT ARRAY[]::TEXT[],
+  custom_goal TEXT,
+  physique_preference TEXT,
+  days_per_week INTEGER CHECK (days_per_week BETWEEN 2 AND 7) DEFAULT 4,
+  duration_minutes INTEGER CHECK (duration_minutes BETWEEN 15 AND 180) DEFAULT 45,
+  workout_style TEXT[] DEFAULT ARRAY['hypertrophy'],
+  schedule_flexibility TEXT CHECK (schedule_flexibility IN ('structured', 'flexible')) DEFAULT 'flexible',
+  cardio_preference TEXT DEFAULT 'moderate',
+  outdoor_activities TEXT[] DEFAULT ARRAY[]::TEXT[],
+  injuries TEXT[] DEFAULT ARRAY[]::TEXT[],
+  limitations_notes TEXT,
+  target_goal TEXT,
+  target_weight_kg NUMERIC(5,2),
+  target_review_date DATE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.fitness_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "fitness_profiles_select_own" ON public.fitness_profiles
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "fitness_profiles_insert_own" ON public.fitness_profiles
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "fitness_profiles_update_own" ON public.fitness_profiles
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "fitness_profiles_delete_own" ON public.fitness_profiles
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Workout Plans (Active and Archived)
+CREATE TABLE IF NOT EXISTS public.workout_plans (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  split_type TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT true NOT NULL,
+  summary TEXT,
+  progression_notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Constraint: Only ONE active plan per user
+CREATE UNIQUE INDEX IF NOT EXISTS idx_one_active_plan_per_user 
+  ON public.workout_plans(user_id) 
+  WHERE is_active = true;
+
+ALTER TABLE public.workout_plans ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "workout_plans_select_own" ON public.workout_plans
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "workout_plans_insert_own" ON public.workout_plans
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "workout_plans_update_own" ON public.workout_plans
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "workout_plans_delete_own" ON public.workout_plans
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Planned Workouts (Days within a Plan)
+CREATE TABLE IF NOT EXISTS public.planned_workouts (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  plan_id UUID REFERENCES public.workout_plans(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  day_index INTEGER CHECK (day_index BETWEEN 1 AND 7) NOT NULL,
+  day_name TEXT NOT NULL,
+  title TEXT NOT NULL,
+  focus TEXT NOT NULL,
+  suggested_duration_min INTEGER DEFAULT 45,
+  warmup_notes TEXT,
+  cardio_notes TEXT,
+  is_rest_day BOOLEAN DEFAULT false NOT NULL,
+  UNIQUE(plan_id, day_index)
+);
+
+ALTER TABLE public.planned_workouts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "planned_workouts_select_own" ON public.planned_workouts
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "planned_workouts_insert_own" ON public.planned_workouts
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "planned_workouts_update_own" ON public.planned_workouts
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "planned_workouts_delete_own" ON public.planned_workouts
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Planned Exercises
+CREATE TABLE IF NOT EXISTS public.planned_exercises (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  planned_workout_id UUID REFERENCES public.planned_workouts(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  exercise_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  target_muscle TEXT NOT NULL,
+  equipment TEXT NOT NULL,
+  sets INTEGER CHECK (sets > 0) DEFAULT 3,
+  reps_range TEXT DEFAULT '8-12',
+  rest_seconds INTEGER DEFAULT 90,
+  order_index INTEGER DEFAULT 0
+);
+
+ALTER TABLE public.planned_exercises ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "planned_exercises_select_own" ON public.planned_exercises
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "planned_exercises_insert_own" ON public.planned_exercises
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "planned_exercises_update_own" ON public.planned_exercises
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "planned_exercises_delete_own" ON public.planned_exercises
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Workout Sessions (Live & Recorded Sessions)
+CREATE TABLE IF NOT EXISTS public.workout_sessions (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  planned_workout_id UUID REFERENCES public.planned_workouts(id) ON DELETE SET NULL,
+  session_date DATE NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT CHECK (status IN ('in_progress', 'completed', 'missed', 'rescheduled')) DEFAULT 'in_progress' NOT NULL,
+  duration_minutes INTEGER DEFAULT 0,
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+  completed_at TIMESTAMP WITH TIME ZONE,
+  notes TEXT,
+  rescheduled_to DATE
+);
+
+ALTER TABLE public.workout_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "workout_sessions_select_own" ON public.workout_sessions
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "workout_sessions_insert_own" ON public.workout_sessions
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "workout_sessions_update_own" ON public.workout_sessions
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "workout_sessions_delete_own" ON public.workout_sessions
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Exercise Set Logs
+CREATE TABLE IF NOT EXISTS public.exercise_set_logs (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  session_id UUID REFERENCES public.workout_sessions(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  exercise_name TEXT NOT NULL,
+  set_number INTEGER NOT NULL,
+  weight_kg NUMERIC(6,2) DEFAULT 0,
+  reps INTEGER DEFAULT 0,
+  completed BOOLEAN DEFAULT true NOT NULL,
+  notes TEXT
+);
+
+ALTER TABLE public.exercise_set_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "exercise_set_logs_select_own" ON public.exercise_set_logs
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "exercise_set_logs_insert_own" ON public.exercise_set_logs
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "exercise_set_logs_update_own" ON public.exercise_set_logs
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "exercise_set_logs_delete_own" ON public.exercise_set_logs
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Outdoor Activity Logs
+CREATE TABLE IF NOT EXISTS public.activity_logs (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  group_id UUID REFERENCES public.gym_groups(id) ON DELETE SET NULL,
+  activity_date DATE NOT NULL,
+  activity_type TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  distance_km NUMERIC(6,2),
+  notes TEXT,
+  completed_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "activity_logs_select_own" ON public.activity_logs
+  FOR SELECT TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "activity_logs_insert_own" ON public.activity_logs
+  FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "activity_logs_update_own" ON public.activity_logs
+  FOR UPDATE TO authenticated USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "activity_logs_delete_own" ON public.activity_logs
+  FOR DELETE TO authenticated USING (auth.uid() = user_id);
+
+-- Verified Crew Celebrations & Group Achievements
+CREATE TABLE IF NOT EXISTS public.crew_achievements (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+  group_id UUID REFERENCES public.gym_groups(id) ON DELETE CASCADE NOT NULL,
+  badge_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.crew_achievements ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "crew_achievements_select_group_members" ON public.crew_achievements
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_members.group_id = crew_achievements.group_id
+      AND group_members.user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "crew_achievements_insert_own" ON public.crew_achievements
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id AND
+    EXISTS (
+      SELECT 1 FROM public.group_members
+      WHERE group_members.group_id = crew_achievements.group_id
+      AND group_members.user_id = auth.uid()
+    )
+  );
+

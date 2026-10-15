@@ -1,0 +1,433 @@
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { 
+  FitnessProfile, 
+  WorkoutPlan, 
+  WorkoutSession, 
+  OutdoorActivityLog, 
+  CrewAchievement,
+  PlannedWorkout 
+} from '../types/smartPlan';
+import { useAuth } from './AuthContext';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { generateSmartWorkoutPlan } from '../lib/smartPlanEngine';
+
+interface SmartPlanContextType {
+  profile: FitnessProfile | null;
+  activePlan: WorkoutPlan | null;
+  sessions: WorkoutSession[];
+  activeSession: WorkoutSession | null;
+  activityLogs: OutdoorActivityLog[];
+  achievements: CrewAchievement[];
+  loading: boolean;
+  saveProfileAndGeneratePlan: (profileData: FitnessProfile) => Promise<WorkoutPlan>;
+  regeneratePlan: () => Promise<WorkoutPlan | null>;
+  startWorkoutSession: (plannedWorkout: PlannedWorkout) => Promise<WorkoutSession>;
+  logExerciseSet: (sessionId: string, exerciseName: string, weightKg: number, reps: number) => Promise<void>;
+  completeWorkoutSession: (sessionId: string, durationMinutes: number, notes?: string) => Promise<boolean>;
+  recordMissedOrRescheduledSession: (sessionId: string, status: 'missed' | 'rescheduled', rescheduledTo?: string) => Promise<boolean>;
+  logOutdoorActivity: (log: Omit<OutdoorActivityLog, 'id' | 'user_id' | 'completed_at'>) => Promise<boolean>;
+  syncStatus: 'synced' | 'local_only' | 'syncing';
+}
+
+const SmartPlanContext = createContext<SmartPlanContextType | undefined>(undefined);
+
+const STORAGE_KEY_PROFILE = 'gymcrew_fitness_profile';
+const STORAGE_KEY_PLAN = 'gymcrew_active_plan';
+const STORAGE_KEY_SESSIONS = 'gymcrew_workout_sessions';
+const STORAGE_KEY_ACTIVITIES = 'gymcrew_activity_logs';
+const STORAGE_KEY_ACHIEVEMENTS = 'gymcrew_achievements';
+
+const isUUID = (str?: string): boolean =>
+  Boolean(str && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str));
+
+export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  const configured = isSupabaseConfigured();
+
+  const [profile, setProfile] = useState<FitnessProfile | null>(null);
+  const [activePlan, setActivePlan] = useState<WorkoutPlan | null>(null);
+  const [sessions, setSessions] = useState<WorkoutSession[]>([]);
+  const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
+  const [activityLogs, setActivityLogs] = useState<OutdoorActivityLog[]>([]);
+  const [achievements, setAchievements] = useState<CrewAchievement[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'local_only' | 'syncing'>('local_only');
+
+  // Load initial data
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    async function initSmartPlanData() {
+      setLoading(true);
+
+      // 1. Try loading cached local data
+      let cachedProfile: FitnessProfile | null = null;
+      let cachedPlan: WorkoutPlan | null = null;
+      let cachedSessions: WorkoutSession[] = [];
+      let cachedActivities: OutdoorActivityLog[] = [];
+
+      try {
+        const localProf = localStorage.getItem(`${STORAGE_KEY_PROFILE}_${user?.id}`);
+        if (localProf) cachedProfile = JSON.parse(localProf);
+
+        const localPlan = localStorage.getItem(`${STORAGE_KEY_PLAN}_${user?.id}`);
+        if (localPlan) cachedPlan = JSON.parse(localPlan);
+
+        const localSess = localStorage.getItem(`${STORAGE_KEY_SESSIONS}_${user?.id}`);
+        if (localSess) cachedSessions = JSON.parse(localSess);
+
+        const localAct = localStorage.getItem(`${STORAGE_KEY_ACTIVITIES}_${user?.id}`);
+        if (localAct) cachedActivities = JSON.parse(localAct);
+      } catch (err) {
+        console.warn('Error reading smart plan local storage:', err);
+      }
+
+      setProfile(cachedProfile);
+      setActivePlan(cachedPlan);
+      setSessions(cachedSessions);
+      setActivityLogs(cachedActivities);
+
+      // Check for any session currently in_progress
+      const currentInProgress = cachedSessions.find((s) => s.status === 'in_progress');
+      if (currentInProgress) {
+        setActiveSession(currentInProgress);
+      }
+
+      // 2. If Supabase is connected and user is live UUID, sync from DB
+      if (configured && supabase && isUUID(user?.id)) {
+        try {
+          setSyncStatus('syncing');
+
+          // Fetch profile
+          const { data: dbProfile, error: profErr } = await supabase
+            .from('fitness_profiles')
+            .select('*')
+            .eq('user_id', user!.id)
+            .maybeSingle();
+
+          if (!profErr && dbProfile) {
+            setProfile(dbProfile);
+            localStorage.setItem(`${STORAGE_KEY_PROFILE}_${user!.id}`, JSON.stringify(dbProfile));
+          }
+
+          // Fetch active workout plan
+          const { data: dbPlan, error: planErr } = await supabase
+            .from('workout_plans')
+            .select('*, planned_workouts(*, planned_exercises(*))')
+            .eq('user_id', user!.id)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (!planErr && dbPlan) {
+            // Map structured response
+            const mappedPlan: WorkoutPlan = {
+              id: dbPlan.id,
+              user_id: dbPlan.user_id,
+              name: dbPlan.name,
+              split_type: dbPlan.split_type,
+              is_active: dbPlan.is_active,
+              summary: dbPlan.summary || '',
+              progression_notes: dbPlan.progression_notes,
+              created_at: dbPlan.created_at,
+              updated_at: dbPlan.updated_at,
+              workouts: (dbPlan.planned_workouts || []).map((w: any) => ({
+                id: w.id,
+                plan_id: w.plan_id,
+                day_index: w.day_index,
+                day_name: w.day_name,
+                title: w.title,
+                focus: w.focus,
+                suggested_duration_min: w.suggested_duration_min,
+                warmup_notes: w.warmup_notes,
+                cardio_notes: w.cardio_notes,
+                is_rest_day: w.is_rest_day,
+                exercises: (w.planned_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index),
+              })).sort((a: any, b: any) => a.day_index - b.day_index),
+            };
+
+            setActivePlan(mappedPlan);
+            localStorage.setItem(`${STORAGE_KEY_PLAN}_${user!.id}`, JSON.stringify(mappedPlan));
+          }
+
+          setSyncStatus('synced');
+        } catch (syncErr) {
+          console.warn('Smart plan remote fetch error, using local data:', syncErr);
+          setSyncStatus('local_only');
+        }
+      }
+
+      setLoading(false);
+    }
+
+    initSmartPlanData();
+  }, [user, configured]);
+
+  // Save profile and generate new plan
+  const saveProfileAndGeneratePlan = useCallback(
+    async (profileData: FitnessProfile): Promise<WorkoutPlan> => {
+      if (!user) throw new Error('Must be signed in to save profile');
+
+      const fullProfile: FitnessProfile = {
+        ...profileData,
+        user_id: user.id,
+        updated_at: new Date().toISOString(),
+      };
+
+      setProfile(fullProfile);
+      localStorage.setItem(`${STORAGE_KEY_PROFILE}_${user.id}`, JSON.stringify(fullProfile));
+
+      // Generate deterministic workout plan
+      const newPlan = generateSmartWorkoutPlan(fullProfile);
+      newPlan.user_id = user.id;
+
+      setActivePlan(newPlan);
+      localStorage.setItem(`${STORAGE_KEY_PLAN}_${user.id}`, JSON.stringify(newPlan));
+
+      // Attempt remote save if Supabase is connected
+      if (configured && supabase && isUUID(user.id)) {
+        try {
+          await supabase.from('fitness_profiles').upsert(fullProfile, { onConflict: 'user_id' });
+          
+          // Deactivate prior plans
+          await supabase
+            .from('workout_plans')
+            .update({ is_active: false })
+            .eq('user_id', user.id);
+
+          // Insert new plan
+          const { data: insertedPlan } = await supabase
+            .from('workout_plans')
+            .insert({
+              user_id: user.id,
+              name: newPlan.name,
+              split_type: newPlan.split_type,
+              is_active: true,
+              summary: newPlan.summary,
+              progression_notes: newPlan.progression_notes,
+            })
+            .select()
+            .single();
+
+          if (insertedPlan) {
+            newPlan.id = insertedPlan.id;
+            for (const wk of newPlan.workouts) {
+              const { data: insertedWk } = await supabase
+                .from('planned_workouts')
+                .insert({
+                  plan_id: insertedPlan.id,
+                  user_id: user.id,
+                  day_index: wk.day_index,
+                  day_name: wk.day_name,
+                  title: wk.title,
+                  focus: wk.focus,
+                  suggested_duration_min: wk.suggested_duration_min,
+                  warmup_notes: wk.warmup_notes,
+                  cardio_notes: wk.cardio_notes,
+                  is_rest_day: wk.is_rest_day,
+                })
+                .select()
+                .single();
+
+              if (insertedWk && wk.exercises.length > 0) {
+                await supabase.from('planned_exercises').insert(
+                  wk.exercises.map((ex, idx) => ({
+                    planned_workout_id: insertedWk.id,
+                    user_id: user.id,
+                    exercise_id: ex.exercise_id,
+                    name: ex.name,
+                    target_muscle: ex.target_muscle,
+                    equipment: ex.equipment,
+                    sets: ex.sets,
+                    reps_range: ex.reps_range,
+                    rest_seconds: ex.rest_seconds,
+                    order_index: idx,
+                  }))
+                );
+              }
+            }
+          }
+          setSyncStatus('synced');
+        } catch (remoteErr) {
+          console.warn('Could not sync plan to Supabase, saved locally:', remoteErr);
+          setSyncStatus('local_only');
+        }
+      }
+
+      return newPlan;
+    },
+    [user, configured]
+  );
+
+  // Regenerate plan from existing profile
+  const regeneratePlan = useCallback(async (): Promise<WorkoutPlan | null> => {
+    if (!profile) return null;
+    return await saveProfileAndGeneratePlan(profile);
+  }, [profile, saveProfileAndGeneratePlan]);
+
+  // Start workout session
+  const startWorkoutSession = useCallback(
+    async (plannedWorkout: PlannedWorkout): Promise<WorkoutSession> => {
+      const today = new Date().toISOString().split('T')[0];
+      const newSession: WorkoutSession = {
+        id: 'sess_' + Math.random().toString(36).substring(2, 9),
+        user_id: user?.id || '',
+        planned_workout_id: plannedWorkout.id,
+        session_date: today,
+        title: plannedWorkout.title,
+        status: 'in_progress', // Default status is in_progress per requirements
+        duration_minutes: 0,
+        started_at: new Date().toISOString(),
+        completed_at: null, // Nullable! Only set when explicitly finished
+        notes: '',
+        sets: [],
+      };
+
+      const updated = [newSession, ...sessions.filter((s) => s.id !== newSession.id)];
+      setSessions(updated);
+      setActiveSession(newSession);
+
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user.id}`, JSON.stringify(updated));
+      }
+
+      return newSession;
+    },
+    [user, sessions]
+  );
+
+  // Log set in active session
+  const logExerciseSet = useCallback(
+    async (sessionId: string, exerciseName: string, weightKg: number, reps: number) => {
+      setSessions((prev) =>
+        prev.map((s) => {
+          if (s.id !== sessionId) return s;
+          const newSet = {
+            id: 'set_' + Math.random().toString(36).substring(2, 9),
+            session_id: sessionId,
+            exercise_name: exerciseName,
+            set_number: s.sets.filter((x) => x.exercise_name === exerciseName).length + 1,
+            weight_kg: weightKg,
+            reps,
+            completed: true,
+          };
+          const updatedSession = { ...s, sets: [...s.sets, newSet] };
+          if (activeSession?.id === sessionId) {
+            setActiveSession(updatedSession);
+          }
+          return updatedSession;
+        })
+      );
+    },
+    [activeSession]
+  );
+
+  // Complete workout session
+  const completeWorkoutSession = useCallback(
+    async (sessionId: string, durationMinutes: number, notes?: string): Promise<boolean> => {
+      const now = new Date().toISOString();
+      let completedSession: WorkoutSession | null = null;
+
+      const updated = sessions.map((s) => {
+        if (s.id !== sessionId) return s;
+        completedSession = {
+          ...s,
+          status: 'completed' as const,
+          duration_minutes: durationMinutes,
+          completed_at: now, // Set ONLY upon completion
+          notes: notes || s.notes,
+        };
+        return completedSession;
+      });
+
+      setSessions(updated);
+      setActiveSession(null);
+
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user.id}`, JSON.stringify(updated));
+      }
+
+      return true;
+    },
+    [user, sessions]
+  );
+
+  // Missed or Rescheduled session
+  const recordMissedOrRescheduledSession = useCallback(
+    async (sessionId: string, status: 'missed' | 'rescheduled', rescheduledTo?: string): Promise<boolean> => {
+      const updated = sessions.map((s) => {
+        if (s.id !== sessionId) return s;
+        return {
+          ...s,
+          status,
+          rescheduled_to: rescheduledTo,
+        };
+      });
+
+      setSessions(updated);
+      if (activeSession?.id === sessionId) setActiveSession(null);
+
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user.id}`, JSON.stringify(updated));
+      }
+
+      return true;
+    },
+    [user, sessions, activeSession]
+  );
+
+  // Log Outdoor / Activity Day
+  const logOutdoorActivity = useCallback(
+    async (log: Omit<OutdoorActivityLog, 'id' | 'user_id' | 'completed_at'>): Promise<boolean> => {
+      if (!user) return false;
+
+      const newLog: OutdoorActivityLog = {
+        ...log,
+        id: 'act_' + Math.random().toString(36).substring(2, 9),
+        user_id: user.id,
+        completed_at: new Date().toISOString(),
+      };
+
+      const updated = [newLog, ...activityLogs];
+      setActivityLogs(updated);
+      localStorage.setItem(`${STORAGE_KEY_ACTIVITIES}_${user.id}`, JSON.stringify(updated));
+
+      return true;
+    },
+    [user, activityLogs]
+  );
+
+  return (
+    <SmartPlanContext.Provider
+      value={{
+        profile,
+        activePlan,
+        sessions,
+        activeSession,
+        activityLogs,
+        achievements,
+        loading,
+        saveProfileAndGeneratePlan,
+        regeneratePlan,
+        startWorkoutSession,
+        logExerciseSet,
+        completeWorkoutSession,
+        recordMissedOrRescheduledSession,
+        logOutdoorActivity,
+        syncStatus,
+      }}
+    >
+      {children}
+    </SmartPlanContext.Provider>
+  );
+};
+
+export const useSmartPlan = (): SmartPlanContextType => {
+  const context = useContext(SmartPlanContext);
+  if (!context) {
+    throw new Error('useSmartPlan must be used within a SmartPlanProvider');
+  }
+  return context;
+};

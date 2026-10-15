@@ -63,3 +63,6 @@ export interface StreakStats {
   completedThisMonth: number;
   totalCompleted: number;
 }
+
+export * from './smartPlan';
+

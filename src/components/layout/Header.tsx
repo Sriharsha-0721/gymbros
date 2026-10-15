@@ -93,6 +93,19 @@ export const Header: React.FC<HeaderProps> = ({
             Weekly Schedule
           </button>
           <button
+            onClick={() => setCurrentTab('smart-plan')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+              currentTab === 'smart-plan'
+                ? 'bg-[#ccff00] text-[#090a0f]'
+                : 'text-slate-300 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <span>Smart Plan</span>
+            <span className="text-[9px] uppercase px-1.5 py-0.2 rounded-full font-extrabold bg-[#ccff00]/20 text-[#ccff00] border border-[#ccff00]/40">
+              AI
+            </span>
+          </button>
+          <button
             onClick={() => setCurrentTab('progress')}
             className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               currentTab === 'progress'

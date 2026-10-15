@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Calendar, Flame, Users, Plus } from 'lucide-react';
+import { Home, Calendar, Dumbbell, Flame, Users, Plus } from 'lucide-react';
 
 interface MobileNavProps {
   currentTab: string;
@@ -14,8 +14,9 @@ export const MobileNav: React.FC<MobileNavProps> = ({
 }) => {
   const tabs = [
     { id: 'dashboard', label: 'Home', icon: Home },
-    { id: 'calendar', label: 'Schedule', icon: Calendar },
+    { id: 'smart-plan', label: 'Plan', icon: Dumbbell },
     { id: 'checkin', label: 'Log', icon: Plus, isAction: true },
+    { id: 'calendar', label: 'Schedule', icon: Calendar },
     { id: 'progress', label: 'Streaks', icon: Flame },
     { id: 'group', label: 'Crew', icon: Users },
   ];

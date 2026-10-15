@@ -26,6 +26,8 @@ import { calculateStreakStats } from './lib/streakUtils';
 import { getTodayKey, formatFullDate } from './lib/dateUtils';
 import { GymStatus } from './types';
 import { Sparkles, Calendar, Flame, Users, Dumbbell, ShieldCheck } from 'lucide-react';
+import { SmartPlanProvider } from './context/SmartPlanContext';
+import { SmartPlanView } from './components/smartPlan/SmartPlanView';
 
 const MainAppContent: React.FC = () => {
   const {
@@ -242,6 +244,13 @@ const MainAppContent: React.FC = () => {
           </div>
         )}
 
+        {/* TAB: SMART PLAN (AI-POWERED WORKOUT PLANNER) */}
+        {currentTab === 'smart-plan' && (
+          <div className="animate-in fade-in duration-200">
+            <SmartPlanView onOpenCheckIn={() => setIsCheckInOpen(true)} />
+          </div>
+        )}
+
         {/* TAB 3: STREAKS & PROGRESS */}
         {currentTab === 'progress' && (
           <div className="space-y-5 animate-in fade-in duration-200">
@@ -387,7 +396,9 @@ export default function App() {
   return (
     <AuthProvider>
       <GroupProvider>
-        <MainAppContent />
+        <SmartPlanProvider>
+          <MainAppContent />
+        </SmartPlanProvider>
       </GroupProvider>
     </AuthProvider>
   );
