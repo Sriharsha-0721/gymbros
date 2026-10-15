@@ -108,7 +108,7 @@ export const WeeklyCalendarView: React.FC<WeeklyCalendarViewProps> = ({
 
           {/* Status Quick Filters */}
           <div className="flex items-center gap-1 flex-wrap">
-            {['all', 'morning', 'evening', 'night', 'rest'].map((st) => (
+            {['all', 'morning', 'afternoon', 'evening', 'rest'].map((st) => (
               <button
                 key={st}
                 onClick={() => setStatusFilter(st)}

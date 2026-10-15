@@ -1,5 +1,5 @@
-export type TimeSlot = 'morning' | 'evening' | 'night';
-export type GymStatus = TimeSlot | 'rest' | 'undecided';
+export type TimeSlot = 'morning' | 'afternoon' | 'evening';
+export type GymStatus = TimeSlot | 'rest' | 'undecided' | 'night';
 
 export interface UserProfile {
   id: string;

@@ -9,21 +9,21 @@ Built with **React 19, TypeScript, Vite, Tailwind CSS, Supabase (PostgreSQL, Aut
 ## ⚡ Core Features
 
 1. **Daily Availability & Rest Days**:
-   - 5 explicit statuses: **Morning**, **Evening**, **Night**, **Rest**, and **Not Decided**.
+   - 5 explicit statuses: **Morning**, **Afternoon**, **Evening**, **Rest**, and **Not Decided**.
    - Optional preferred workout time (e.g. `06:30 AM`) and workout focus note (e.g. `Chest & Triceps PR attempt`).
    - One-tap quick actions right on the dashboard.
    - Rest days are distinctly tracked to protect consistency without inflating workout counts.
 
 2. **Smart Home Dashboard**:
    - Immediately answers: *Who is lifting today? When are they going? Who can I join?*
-   - Real-time time slot breakdown counts (Morning / Evening / Night).
+   - Real-time time slot breakdown counts (Morning / Afternoon / Evening).
    - "Matching Gym Partners" highlighting squad members going at the same time.
    - Dedicated "Active Recovery & Rest" section.
    - Compact upcoming schedule preview.
 
 3. **Weekly Group Calendar**:
    - 7-day responsive grid (Monday through Sunday) with "TODAY" highlight.
-   - Filter by time slots (*Morning, Evening, Night, Rest*) or individual members.
+   - Filter by time slots (*Morning, Afternoon, Evening, Rest*) or individual members.
    - Week navigation (Previous / Next / Today).
    - Add/edit plans directly for any upcoming day.
 

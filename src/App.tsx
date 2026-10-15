@@ -194,7 +194,7 @@ const MainAppContent: React.FC = () => {
               onOpenCheckIn={() => setIsCheckInOpen(true)}
             />
 
-            {/* 2. Three Questions Answered: Time Slot Counts (Morning, Evening, Night) */}
+            {/* 2. Three Questions Answered: Time Slot Counts (Morning, Afternoon, Evening) */}
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">

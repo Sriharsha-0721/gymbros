@@ -125,12 +125,22 @@ CREATE TABLE IF NOT EXISTS public.daily_availability (
   group_id UUID REFERENCES public.gym_groups(id) ON DELETE CASCADE NOT NULL,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
   date TEXT NOT NULL, -- Format: YYYY-MM-DD
-  status TEXT CHECK (status IN ('morning', 'evening', 'night', 'rest', 'undecided')) NOT NULL,
+  status TEXT CHECK (status IN ('morning', 'afternoon', 'evening', 'night', 'rest', 'undecided')) NOT NULL,
   preferred_time TEXT,
   notes TEXT,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   UNIQUE(group_id, user_id, date)
 );
+
+-- Safely update status check constraint if table already exists in Supabase
+DO $$
+BEGIN
+  ALTER TABLE public.daily_availability DROP CONSTRAINT IF EXISTS daily_availability_status_check;
+  ALTER TABLE public.daily_availability ADD CONSTRAINT daily_availability_status_check 
+    CHECK (status IN ('morning', 'afternoon', 'evening', 'night', 'rest', 'undecided'));
+EXCEPTION
+  WHEN OTHERS THEN NULL;
+END $$;
 
 ALTER TABLE public.daily_availability ENABLE ROW LEVEL SECURITY;
 

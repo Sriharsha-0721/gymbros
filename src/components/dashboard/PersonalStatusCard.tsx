@@ -2,7 +2,7 @@ import React from 'react';
 import { DailyAvailability, GymStatus } from '../../types';
 import { Card } from '../common/Card';
 import { GymStatusBadge } from '../common/Badge';
-import { Sun, Sunset, Moon, Coffee, Edit3, Clock, CheckCircle2, Calendar } from 'lucide-react';
+import { Sun, SunMedium, Sunset, Coffee, Edit3, Clock, CheckCircle2, Calendar } from 'lucide-react';
 import { getTodayKey, getTomorrowKey, formatFullDate, formatFriendlyDate } from '../../lib/dateUtils';
 
 interface PersonalStatusCardProps {
@@ -152,27 +152,27 @@ export const PersonalStatusCard: React.FC<PersonalStatusCardProps> = ({
           </button>
 
           <button
+            onClick={() => onQuickSelectStatus('afternoon')}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+              status === 'afternoon'
+                ? 'bg-orange-500/20 text-orange-300 border-orange-500/40 shadow-sm shadow-orange-500/20'
+                : 'bg-[#141722] text-slate-400 border-[#202536] hover:text-white hover:bg-[#1a1f2e]'
+            }`}
+          >
+            <SunMedium size={14} className={status === 'afternoon' ? 'text-orange-400' : ''} />
+            <span>Afternoon</span>
+          </button>
+
+          <button
             onClick={() => onQuickSelectStatus('evening')}
             className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-              status === 'evening'
+              status === 'evening' || status === 'night'
                 ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm shadow-cyan-500/20'
                 : 'bg-[#141722] text-slate-400 border-[#202536] hover:text-white hover:bg-[#1a1f2e]'
             }`}
           >
-            <Sunset size={14} className={status === 'evening' ? 'text-cyan-400' : ''} />
+            <Sunset size={14} className={status === 'evening' || status === 'night' ? 'text-cyan-400' : ''} />
             <span>Evening</span>
-          </button>
-
-          <button
-            onClick={() => onQuickSelectStatus('night')}
-            className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-              status === 'night'
-                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm shadow-purple-500/20'
-                : 'bg-[#141722] text-slate-400 border-[#202536] hover:text-white hover:bg-[#1a1f2e]'
-            }`}
-          >
-            <Moon size={14} className={status === 'night' ? 'text-purple-400' : ''} />
-            <span>Night</span>
           </button>
 
           <button

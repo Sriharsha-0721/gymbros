@@ -1,6 +1,6 @@
 import React from 'react';
 import { GymStatus } from '../../types';
-import { Sun, Sunset, Moon, Coffee, HelpCircle } from 'lucide-react';
+import { Sun, SunMedium, Sunset, Coffee, HelpCircle } from 'lucide-react';
 
 interface BadgeProps {
   status: GymStatus;
@@ -37,22 +37,23 @@ export const GymStatusBadge: React.FC<BadgeProps> = ({
           <span>Morning</span>
         </span>
       );
+    case 'afternoon':
+      return (
+        <span
+          className={`inline-flex items-center rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 ${sizeClasses[size]} ${className}`}
+        >
+          {showIcon && <SunMedium size={iconSizes[size]} className="shrink-0" />}
+          <span>Afternoon</span>
+        </span>
+      );
     case 'evening':
+    case 'night':
       return (
         <span
           className={`inline-flex items-center rounded-full bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 ${sizeClasses[size]} ${className}`}
         >
           {showIcon && <Sunset size={iconSizes[size]} className="shrink-0" />}
           <span>Evening</span>
-        </span>
-      );
-    case 'night':
-      return (
-        <span
-          className={`inline-flex items-center rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 ${sizeClasses[size]} ${className}`}
-        >
-          {showIcon && <Moon size={iconSizes[size]} className="shrink-0" />}
-          <span>Night</span>
         </span>
       );
     case 'rest':

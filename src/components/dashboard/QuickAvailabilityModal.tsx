@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { GymStatus } from '../../types';
-import { Sun, Sunset, Moon, Coffee, HelpCircle, Clock, FileText, Calendar } from 'lucide-react';
+import { Sun, SunMedium, Sunset, Coffee, HelpCircle, Clock, FileText, Calendar } from 'lucide-react';
 import { formatFriendlyDate, getTodayKey, getTomorrowKey } from '../../lib/dateUtils';
 
 interface QuickAvailabilityModalProps {
@@ -65,20 +65,20 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
       activeBorder: 'border-amber-500/50 bg-amber-500/10 text-white',
     },
     {
+      id: 'afternoon',
+      label: 'Afternoon',
+      desc: '12:00 PM – 4:59 PM',
+      icon: SunMedium,
+      color: 'text-orange-400',
+      activeBorder: 'border-orange-500/50 bg-orange-500/10 text-white',
+    },
+    {
       id: 'evening',
       label: 'Evening',
-      desc: '12:00 PM – 7:59 PM',
+      desc: '5:00 PM – Late Night',
       icon: Sunset,
       color: 'text-cyan-400',
       activeBorder: 'border-cyan-500/50 bg-cyan-500/10 text-white',
-    },
-    {
-      id: 'night',
-      label: 'Night',
-      desc: '8:00 PM – Late Night',
-      icon: Moon,
-      color: 'text-purple-400',
-      activeBorder: 'border-purple-500/50 bg-purple-500/10 text-white',
     },
     {
       id: 'rest',

@@ -1,13 +1,13 @@
 import React from 'react';
-import { DailyAvailability } from '../../types';
+import { DailyAvailability, TimeSlot } from '../../types';
 import { Card } from '../common/Card';
 import { Avatar } from '../common/Avatar';
-import { Sun, Sunset, Moon } from 'lucide-react';
+import { Sun, SunMedium, Sunset } from 'lucide-react';
 
 interface SlotSummaryCardsProps {
   availabilities: DailyAvailability[];
   currentUserId?: string;
-  onSelectSlotFilter?: (slot: 'morning' | 'evening' | 'night') => void;
+  onSelectSlotFilter?: (slot: TimeSlot) => void;
 }
 
 export const SlotSummaryCards: React.FC<SlotSummaryCardsProps> = ({
@@ -16,8 +16,8 @@ export const SlotSummaryCards: React.FC<SlotSummaryCardsProps> = ({
   onSelectSlotFilter,
 }) => {
   const morningList = availabilities.filter((a) => a.status === 'morning');
-  const eveningList = availabilities.filter((a) => a.status === 'evening');
-  const nightList = availabilities.filter((a) => a.status === 'night');
+  const afternoonList = availabilities.filter((a) => a.status === 'afternoon');
+  const eveningList = availabilities.filter((a) => a.status === 'evening' || a.status === 'night');
 
   const slots = [
     {
@@ -32,26 +32,26 @@ export const SlotSummaryCards: React.FC<SlotSummaryCardsProps> = ({
       glow: 'hover:border-amber-500/40',
     },
     {
+      id: 'afternoon' as const,
+      title: 'Afternoon',
+      timeRange: '12 PM – 5 PM',
+      count: afternoonList.length,
+      items: afternoonList,
+      icon: SunMedium,
+      color: 'text-orange-400',
+      badgeBg: 'bg-orange-500/10 border-orange-500/20 text-orange-300',
+      glow: 'hover:border-orange-500/40',
+    },
+    {
       id: 'evening' as const,
       title: 'Evening',
-      timeRange: '12 PM – 8 PM',
+      timeRange: '5 PM – Late',
       count: eveningList.length,
       items: eveningList,
       icon: Sunset,
       color: 'text-cyan-400',
       badgeBg: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300',
       glow: 'hover:border-cyan-500/40',
-    },
-    {
-      id: 'night' as const,
-      title: 'Night',
-      timeRange: '8 PM – Late',
-      count: nightList.length,
-      items: nightList,
-      icon: Moon,
-      color: 'text-purple-400',
-      badgeBg: 'bg-purple-500/10 border-purple-500/20 text-purple-300',
-      glow: 'hover:border-purple-500/40',
     },
   ];
 

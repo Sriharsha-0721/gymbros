@@ -70,7 +70,7 @@ export const SignInLanding: React.FC<SignInLandingProps> = () => {
         </h1>
 
         <p className="text-base sm:text-lg text-slate-400 mt-4 max-w-xl">
-          Coordinate morning, evening, and night workout sessions with your friends, discover compatible partners, mark intentional rest days, and build consistency streaks together.
+          Coordinate morning, afternoon, and evening workout sessions with your friends, discover compatible partners, mark intentional rest days, and build consistency streaks together.
         </p>
 
         {/* Invite Banner if invited */}
@@ -144,7 +144,7 @@ export const SignInLanding: React.FC<SignInLandingProps> = () => {
             </div>
             <h3 className="text-sm font-bold text-white font-heading">Daily Time Slots</h3>
             <p className="text-xs text-slate-400 mt-1">
-              Mark Morning, Evening, Night, or explicit Rest days to protect consistency.
+              Mark Morning, Afternoon, Evening, or explicit Rest days to protect consistency.
             </p>
           </div>
 
