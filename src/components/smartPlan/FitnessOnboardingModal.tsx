@@ -131,6 +131,26 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
     setHeightUnit(newUnit);
   };
 
+  const handleFeetChange = (valStr: string) => {
+    const digits = valStr.replace(/\D/g, '');
+    if (!digits) {
+      setHeightFeet(0);
+      return;
+    }
+    const cleanNum = parseInt(digits, 10);
+    setHeightFeet(Math.min(8, cleanNum));
+  };
+
+  const handleInchesChange = (valStr: string) => {
+    const digits = valStr.replace(/\D/g, '');
+    if (!digits) {
+      setHeightInches(0);
+      return;
+    }
+    const cleanNum = parseInt(digits, 10);
+    setHeightInches(Math.min(11, cleanNum));
+  };
+
   const handleWeightUnitChange = (newUnit: 'kg' | 'lbs') => {
     if (newUnit === 'lbs' && weightUnit === 'kg') {
       setWeightLbs(Math.round(weightKg * 2.20462));
@@ -339,28 +359,63 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="4"
-                        max="7"
-                        value={heightFeet}
-                        onChange={(e) => setHeightFeet(Number(e.target.value))}
-                        className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold text-center"
-                      />
-                      <span className="text-xs text-slate-400">ft</span>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={heightFeet > 0 ? heightFeet : ''}
+                          onChange={(e) => handleFeetChange(e.target.value)}
+                          onBlur={() => {
+                            if (heightFeet === 0) setHeightFeet(5);
+                          }}
+                          placeholder="5"
+                          className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold text-center focus:border-[#ccff00] focus:outline-none"
+                        />
+                        <span className="text-xs text-slate-400">ft</span>
+                      </div>
+                      <div className="flex-1 flex items-center gap-2">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          value={heightInches > 0 ? heightInches : (heightInches === 0 && heightFeet > 0 ? '0' : '')}
+                          onChange={(e) => handleInchesChange(e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold text-center focus:border-[#ccff00] focus:outline-none"
+                        />
+                        <span className="text-xs text-slate-400">in</span>
+                      </div>
                     </div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <input
-                        type="number"
-                        min="0"
-                        max="11"
-                        value={heightInches}
-                        onChange={(e) => setHeightInches(Number(e.target.value))}
-                        className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold text-center"
-                      />
-                      <span className="text-xs text-slate-400">in</span>
+
+                    {/* Quick Height Preset Chips */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                      {[
+                        { ft: 5, in: 7, label: '5 ft 7 in' },
+                        { ft: 5, in: 9, label: '5 ft 9 in' },
+                        { ft: 5, in: 10, label: '5 ft 10 in' },
+                        { ft: 5, in: 11, label: '5 ft 11 in' },
+                        { ft: 6, in: 0, label: '6 ft 0 in' },
+                        { ft: 6, in: 2, label: '6 ft 2 in' },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setHeightFeet(preset.ft);
+                            setHeightInches(preset.in);
+                          }}
+                          className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-colors shrink-0 ${
+                            heightFeet === preset.ft && heightInches === preset.in
+                              ? 'bg-[#ccff00]/15 border-[#ccff00] text-[#ccff00]'
+                              : 'bg-[#0b0c12] border-[#1e2333] text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
