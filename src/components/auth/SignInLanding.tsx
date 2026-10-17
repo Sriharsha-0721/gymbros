@@ -8,7 +8,7 @@ interface SignInLandingProps {
 }
 
 export const SignInLanding: React.FC<SignInLandingProps> = () => {
-  const { signInWithGoogle, error } = useAuth();
+  const { signInWithGoogle, error, enableDemoMode } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
   const [inviteCode, setInviteCode] = useState<string>('');
 
@@ -123,6 +123,15 @@ export const SignInLanding: React.FC<SignInLandingProps> = () => {
               </svg>
             )}
             <span>Sign in with Google</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={enableDemoMode}
+            className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-[#141724] hover:bg-[#1c2133] border border-[#262c3e] text-slate-200 font-bold text-xs transition-all active:scale-[0.98] cursor-pointer"
+          >
+            <Dumbbell size={15} className="text-[#ccff00]" />
+            <span>Continue with Demo / Guest Mode</span>
           </button>
 
           <p className="text-[11px] text-slate-500 font-medium">
