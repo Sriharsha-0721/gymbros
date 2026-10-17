@@ -306,6 +306,8 @@ const MainAppContent: React.FC = () => {
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         onOpenCheckIn={() => setIsCheckInOpen(true)}
+        onOpenProfile={() => setIsProfileOpen(true)}
+        isProfileOpen={isProfileOpen}
       />
 
       {/* MODALS */}

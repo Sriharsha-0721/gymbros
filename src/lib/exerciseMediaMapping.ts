@@ -327,12 +327,12 @@ export const EXERCISE_MEDIA_DATABASE: Record<string, ExerciseMediaRecord> = {
     id: 'romanian_deadlift',
     datasetId: '0085',
     name: 'barbell romanian deadlift',
-    targetMuscle: 'glutes',
-    secondaryMuscles: ["hamstrings","lower back"],
+    targetMuscle: 'hamstrings & gluteal chain',
+    secondaryMuscles: ["lower back", "lats"],
     gifUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/videos/0085-wQ2c4XD.gif',
     posterUrl: 'https://raw.githubusercontent.com/hasaneyldrm/exercises-dataset/main/images/0085-wQ2c4XD.jpg',
-    primaryAnatomy: ["hamstrings"],
-    secondaryAnatomy: ["glutes","lower_back"],
+    primaryAnatomy: ["hamstrings", "glutes"],
+    secondaryAnatomy: ["lower_back"],
     attribution: '© Gym visual — https://gymvisual.com/'
   },
   'leg_press': {
@@ -553,6 +553,38 @@ export const EXERCISE_MEDIA_DATABASE: Record<string, ExerciseMediaRecord> = {
   }
 };
 
+export const resolveAnatomyMuscles = (text: string): AnatomyMuscle[] => {
+  const clean = text.toLowerCase();
+  const matched: AnatomyMuscle[] = [];
+
+  if (clean.includes('chest') || clean.includes('pectoral') || clean.includes('pec')) matched.push('chest');
+  if (clean.includes('front delt') || clean.includes('anterior delt')) matched.push('front_delts');
+  if (clean.includes('side delt') || clean.includes('lateral delt') || clean.includes('lateral raise')) matched.push('side_delts');
+  if (clean.includes('rear delt') || clean.includes('posterior delt') || clean.includes('face pull')) matched.push('rear_delts');
+  if (clean.includes('trap') || clean.includes('rhomboid') || clean.includes('upper back')) {
+    if (clean.includes('rhomboid')) matched.push('rhomboids');
+    matched.push('traps');
+  }
+  if (clean.includes('lat') || clean.includes('pulldown') || clean.includes('pull-up') || clean.includes('pullup')) matched.push('lats');
+  if (clean.includes('lower back') || clean.includes('erector') || clean.includes('lumbar')) matched.push('lower_back');
+  if (clean.includes('bicep') || clean.includes('brachii')) matched.push('biceps');
+  if (clean.includes('tricep')) matched.push('triceps');
+  if (clean.includes('forearm') || clean.includes('wrist') || clean.includes('grip')) matched.push('forearms');
+  if (clean.includes('ab') || clean.includes('core') || clean.includes('crunches') || clean.includes('plank')) matched.push('abs');
+  if (clean.includes('oblique')) matched.push('obliques');
+  if (clean.includes('glute') || clean.includes('hip')) matched.push('glutes');
+  if (clean.includes('quad') || clean.includes('squat') || clean.includes('leg press') || clean.includes('leg extension')) matched.push('quads');
+  if (clean.includes('hamstring') || clean.includes('rdl') || clean.includes('deadlift') || clean.includes('leg curl')) matched.push('hamstrings');
+  if (clean.includes('calf') || clean.includes('calves') || clean.includes('gastrocnemius') || clean.includes('soleus')) matched.push('calves');
+
+  // Shoulder catch-all if neither front/side/rear specified
+  if ((clean.includes('shoulder') || clean.includes('deltoid')) && !matched.some(m => ['front_delts', 'side_delts', 'rear_delts'].includes(m))) {
+    matched.push('front_delts', 'side_delts');
+  }
+
+  return Array.from(new Set(matched));
+};
+
 export const getExerciseMedia = (exerciseId: string, exerciseName?: string): ExerciseMediaRecord | null => {
   if (EXERCISE_MEDIA_DATABASE[exerciseId]) {
     return EXERCISE_MEDIA_DATABASE[exerciseId];
@@ -564,6 +596,24 @@ export const getExerciseMedia = (exerciseId: string, exerciseName?: string): Exe
         return record;
       }
     }
+
+    // Dynamic anatomical fallback for any custom or new exercise in the database
+    const resolvedPrimary = resolveAnatomyMuscles(exerciseName);
+    if (resolvedPrimary.length > 0) {
+      return {
+        id: exerciseId,
+        datasetId: 'custom',
+        name: exerciseName,
+        targetMuscle: exerciseName,
+        secondaryMuscles: [],
+        gifUrl: '',
+        posterUrl: '',
+        primaryAnatomy: resolvedPrimary,
+        secondaryAnatomy: [],
+        attribution: 'GYMCREW Anatomical Engine'
+      };
+    }
   }
   return null;
 };
+

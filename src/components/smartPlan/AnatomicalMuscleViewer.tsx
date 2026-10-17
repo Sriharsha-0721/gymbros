@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AnatomyMuscle } from '../../lib/exerciseMediaMapping';
+import { Layers, Eye, ShieldCheck, Sparkles, CheckCircle2 } from 'lucide-react';
 
 interface AnatomicalMuscleViewerProps {
   primaryMuscles: AnatomyMuscle[];
@@ -10,361 +11,560 @@ interface AnatomicalMuscleViewerProps {
 }
 
 export const AnatomicalMuscleViewer: React.FC<AnatomicalMuscleViewerProps> = ({
-  primaryMuscles,
+  primaryMuscles = [],
   secondaryMuscles = [],
   primaryLabel,
   secondaryLabel = [],
   className = '',
 }) => {
-  const [viewMode, setViewMode] = useState<'both' | 'front' | 'back'>('both');
-
-  // Determine fill & stroke color for an anatomical muscle group
-  const getMuscleColor = (muscle: AnatomyMuscle) => {
-    if (primaryMuscles.includes(muscle)) {
-      return {
-        fill: '#ccff00',
-        stroke: '#e6ff80',
-        strokeWidth: 1.5,
-        filter: 'url(#limeGlow)',
-        opacity: 0.95,
-      };
-    }
-    if (secondaryMuscles.includes(muscle)) {
-      return {
-        fill: '#fb923c',
-        stroke: '#fdba74',
-        strokeWidth: 1.5,
-        filter: 'url(#orangeGlow)',
-        opacity: 0.9,
-      };
-    }
-    return {
-      fill: '#181e2b',
-      stroke: '#29334a',
-      strokeWidth: 1,
-      opacity: 0.7,
-    };
-  };
-
+  // Determine if primary muscle is predominantly posterior
   const isPosteriorPrimary = primaryMuscles.some((m) =>
     ['rear_delts', 'traps', 'rhomboids', 'lats', 'lower_back', 'triceps', 'glutes', 'hamstrings'].includes(m)
   );
 
+  // Auto-select correct anatomical view based on the exercise's primary target
+  const [viewMode, setViewMode] = useState<'front' | 'back' | 'both'>(
+    isPosteriorPrimary ? 'back' : 'front'
+  );
+
+  // Update viewMode if exercise changes
+  useEffect(() => {
+    setViewMode(isPosteriorPrimary ? 'back' : 'front');
+  }, [primaryMuscles, isPosteriorPrimary]);
+
+  // Color generator with premium 3D anatomical styling
+  const getMuscleStyle = (muscle: AnatomyMuscle) => {
+    const isPrimary = primaryMuscles.includes(muscle);
+    const isSecondary = secondaryMuscles.includes(muscle);
+
+    if (isPrimary) {
+      return {
+        fill: 'url(#limeMuscularGradient)',
+        stroke: '#e6ff80',
+        strokeWidth: 1.5,
+        filter: 'url(#glowLimeEffect)',
+        opacity: 0.98,
+        className: 'transition-all duration-300 cursor-pointer hover:brightness-110',
+      };
+    }
+
+    if (isSecondary) {
+      return {
+        fill: 'url(#orangeMuscularGradient)',
+        stroke: '#fdba74',
+        strokeWidth: 1.5,
+        filter: 'url(#glowOrangeEffect)',
+        opacity: 0.94,
+        className: 'transition-all duration-300 cursor-pointer hover:brightness-110',
+      };
+    }
+
+    // Neutral anatomical tone
+    return {
+      fill: 'url(#neutralMuscularGradient)',
+      stroke: '#283347',
+      strokeWidth: 0.85,
+      opacity: 0.78,
+      className: 'transition-all duration-300',
+    };
+  };
+
+  const formatMuscleName = (name: string) => {
+    return name
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
   return (
-    <div className={`rounded-2xl bg-[#0f1118] border border-[#202638] p-4 flex flex-col items-center select-none ${className}`}>
-      {/* Top Header / View Selector */}
-      <div className="w-full flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse" />
-          <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider">
-            Target Anatomy
-          </span>
+    <div className={`rounded-2xl bg-[#090b10] border border-[#1e2436] p-3 sm:p-5 flex flex-col items-center select-none shadow-2xl relative overflow-hidden ${className}`}>
+      {/* Background Studio Vignette */}
+      <div
+        className="absolute inset-0 pointer-events-none opacity-40"
+        style={{
+          background: 'radial-gradient(circle at 50% 30%, #151a28 0%, #080a0f 80%)',
+        }}
+      />
+
+      {/* SVG Global Filters & Muscular Gradients */}
+      <svg className="hidden">
+        <defs>
+          {/* Primary Electric Lime 3D Shading */}
+          <linearGradient id="limeMuscularGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#d9ff33" />
+            <stop offset="45%" stopColor="#ccff00" />
+            <stop offset="100%" stopColor="#99cc00" />
+          </linearGradient>
+
+          {/* Secondary Radiant Orange 3D Shading */}
+          <linearGradient id="orangeMuscularGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fb923c" />
+            <stop offset="50%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#c2410c" />
+          </linearGradient>
+
+          {/* Neutral Anatomical Deep Charcoal Shading */}
+          <linearGradient id="neutralMuscularGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#1c2232" />
+            <stop offset="70%" stopColor="#131722" />
+            <stop offset="100%" stopColor="#0d1017" />
+          </linearGradient>
+
+          {/* Bone & Joint Shading */}
+          <linearGradient id="jointGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#161b26" />
+            <stop offset="100%" stopColor="#0d1017" />
+          </linearGradient>
+
+          {/* Electric Lime Glow Filter */}
+          <filter id="glowLimeEffect" x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur stdDeviation="3.5" result="blur" />
+            <feComponentTransfer in="blur" result="boost">
+              <feFuncA type="linear" slope="1.4" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode in="boost" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+
+          {/* Amber Orange Glow Filter */}
+          <filter id="glowOrangeEffect" x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+      </svg>
+
+      {/* Top Header & View Controls */}
+      <div className="w-full relative z-10 flex flex-col xs:flex-row items-start xs:items-center justify-between gap-2.5 mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-[#ccff00]/10 border border-[#ccff00]/30 flex items-center justify-center">
+            <span className="w-2 h-2 rounded-full bg-[#ccff00] animate-pulse" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-white tracking-wide uppercase">
+              Realistic Muscle Heatmap
+            </h3>
+            <p className="text-[10px] text-slate-400">
+              {isPosteriorPrimary ? 'Posterior chain target view' : 'Anterior chain target view'}
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center bg-[#161a25] p-0.5 rounded-lg border border-[#232a3d]">
-          <button
-            type="button"
-            onClick={() => setViewMode('both')}
-            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
-              viewMode === 'both' ? 'bg-[#ccff00] text-black shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Dual
-          </button>
+        {/* View Mode Toggle Switcher */}
+        <div className="flex items-center bg-[#11141c] p-1 rounded-xl border border-[#202638] self-stretch xs:self-auto justify-center">
           <button
             type="button"
             onClick={() => setViewMode('front')}
-            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
-              viewMode === 'front' ? 'bg-[#ccff00] text-black shadow' : 'text-slate-400 hover:text-white'
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider transition-all ${
+              viewMode === 'front'
+                ? 'bg-[#ccff00] text-[#090a0f] shadow-md shadow-[#ccff00]/25'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            Anterior
+            Anterior (Front)
           </button>
+
           <button
             type="button"
             onClick={() => setViewMode('back')}
-            className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${
-              viewMode === 'back' ? 'bg-[#ccff00] text-black shadow' : 'text-slate-400 hover:text-white'
+            className={`px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider transition-all ${
+              viewMode === 'back'
+                ? 'bg-[#ccff00] text-[#090a0f] shadow-md shadow-[#ccff00]/25'
+                : 'text-slate-400 hover:text-white'
             }`}
           >
-            Posterior
+            Posterior (Back)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setViewMode('both')}
+            className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black tracking-wider transition-all ${
+              viewMode === 'both'
+                ? 'bg-[#ccff00] text-[#090a0f] shadow-md shadow-[#ccff00]/25'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Dual View
           </button>
         </div>
       </div>
 
-      {/* SVG Container */}
-      <div className="w-full flex items-center justify-center gap-4 py-2">
-        <svg className="hidden">
-          <defs>
-            <filter id="limeGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-            <filter id="orangeGlow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur stdDeviation="2.5" result="blur" />
-              <feComposite in="SourceGraphic" in2="blur" operator="over" />
-            </filter>
-          </defs>
-        </svg>
-
-        {/* ANTERIOR (FRONT) BODY */}
+      {/* Main Anatomical Display Area */}
+      <div className="w-full relative z-10 flex items-center justify-center gap-4 sm:gap-8 py-2 min-h-[310px] sm:min-h-[380px]">
+        {/* ======================================================== */}
+        {/* 1. ANTERIOR (FRONT) REALISTIC ANATOMY                   */}
+        {/* ======================================================== */}
         {(viewMode === 'both' || viewMode === 'front') && (
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Front
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 px-2.5 py-0.5 rounded-full bg-[#131722] border border-[#222a3d]">
+              Anterior View
             </span>
+
             <svg
-              viewBox="0 0 160 300"
-              className="w-28 sm:w-32 h-52 sm:h-60 transition-transform duration-200"
+              viewBox="0 0 200 440"
+              className={`transition-all duration-300 drop-shadow-xl ${
+                viewMode === 'front'
+                  ? 'h-[320px] xs:h-[350px] sm:h-[400px] w-auto'
+                  : 'h-[250px] sm:h-[300px] w-auto'
+              }`}
             >
-              {/* Head & Neck */}
-              <circle cx="80" cy="22" r="14" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <path d="M74,36 L86,36 L88,48 L72,48 Z" fill="#131722" stroke="#252e42" strokeWidth="1" />
+              {/* Silhouette Base & Head */}
+              <ellipse cx="100" cy="30" rx="15" ry="19" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+              {/* Neck & Sternocleidomastoid */}
+              <path d="M92,48 L108,48 L109,68 L91,68 Z" fill="#111520" stroke="#252d40" strokeWidth="1" />
 
-              {/* Traps (Anterior visible crest) */}
+              {/* Trapezius (Superior / Clavicular visible crest) */}
               <path
-                d="M72,44 Q60,48 56,54 L62,56 Q72,50 80,50 Q88,50 98,56 L104,54 Q100,48 88,44 Z"
-                {...getMuscleColor('traps')}
-              />
-
-              {/* Left & Right Shoulders (Front Deltoids) */}
-              <path
-                d="M54,54 C48,58 44,66 44,74 C44,80 48,84 54,82 C56,76 56,66 58,58 Z"
-                {...getMuscleColor('front_delts')}
-              />
-              <path
-                d="M106,54 C112,58 116,66 116,74 C116,80 112,84 106,82 C104,76 104,66 102,58 Z"
-                {...getMuscleColor('front_delts')}
+                d="M91,52 Q76,58 70,68 L78,71 Q90,64 100,64 Q110,64 122,71 L130,68 Q124,58 109,52 Z"
+                {...getMuscleStyle('traps')}
               />
 
-              {/* Chest (Pectorals) */}
+              {/* Deltoids (Shoulders: Anterior & Lateral) */}
+              {/* Left Front Deltoid */}
               <path
-                d="M58,58 Q78,54 79,62 L79,88 C70,90 60,86 56,78 C54,70 56,62 58,58 Z"
-                {...getMuscleColor('chest')}
+                d="M68,69 C60,73 54,82 54,93 C54,101 58,107 66,104 C69,96 71,84 74,74 Z"
+                {...getMuscleStyle('front_delts')}
               />
+              {/* Left Side/Lateral Deltoid cap */}
               <path
-                d="M102,58 Q82,54 81,62 L81,88 C90,90 100,86 104,78 C106,70 104,62 102,58 Z"
-                {...getMuscleColor('chest')}
+                d="M54,77 C46,82 42,91 42,100 C42,107 46,112 52,109 C54,101 54,89 54,77 Z"
+                {...getMuscleStyle('side_delts')}
               />
-
-              {/* Biceps (Left & Right) */}
+              {/* Right Front Deltoid */}
               <path
-                d="M44,78 C40,84 40,96 42,106 C46,108 50,104 52,98 C54,90 52,82 48,78 Z"
-                {...getMuscleColor('biceps')}
+                d="M132,69 C140,73 146,82 146,93 C146,101 142,107 134,104 C131,96 129,84 126,74 Z"
+                {...getMuscleStyle('front_delts')}
               />
+              {/* Right Side/Lateral Deltoid cap */}
               <path
-                d="M116,78 C120,84 120,96 118,106 C114,108 110,104 108,98 C106,90 108,82 112,78 Z"
-                {...getMuscleColor('biceps')}
-              />
-
-              {/* Forearms (Left & Right) */}
-              <path
-                d="M42,108 C38,118 36,132 38,144 C42,146 48,142 48,136 C50,126 50,116 48,108 Z"
-                {...getMuscleColor('forearms')}
-              />
-              <path
-                d="M118,108 C122,118 124,132 122,144 C118,146 112,142 112,136 C110,126 110,116 112,108 Z"
-                {...getMuscleColor('forearms')}
+                d="M146,77 C154,82 158,91 158,100 C158,107 154,112 148,109 C146,101 146,89 146,77 Z"
+                {...getMuscleStyle('side_delts')}
               />
 
+              {/* Pectoralis Major (Chest: Left & Right with sternal division) */}
+              {/* Left Pec */}
+              <path
+                d="M74,73 Q98,68 99,78 L99,114 C88,117 76,111 70,101 C68,90 70,80 74,73 Z"
+                {...getMuscleStyle('chest')}
+              />
+              {/* Right Pec */}
+              <path
+                d="M126,73 Q102,68 101,78 L101,114 C112,117 124,111 130,101 C132,90 130,80 126,73 Z"
+                {...getMuscleStyle('chest')}
+              />
+
+              {/* Biceps Brachii (Upper Arms) */}
+              {/* Left Biceps */}
+              <path
+                d="M52,106 C47,113 46,128 49,141 C54,144 60,139 63,131 C65,121 64,111 58,106 Z"
+                {...getMuscleStyle('biceps')}
+              />
+              {/* Right Biceps */}
+              <path
+                d="M148,106 C153,113 154,128 151,141 C146,144 140,139 137,131 C135,121 136,111 142,106 Z"
+                {...getMuscleStyle('biceps')}
+              />
+
+              {/* Forearms (Brachioradialis & Flexors) */}
+              {/* Left Forearm */}
+              <path
+                d="M49,143 C44,155 42,172 45,188 C50,191 57,186 58,178 C60,165 60,152 57,143 Z"
+                {...getMuscleStyle('forearms')}
+              />
+              {/* Right Forearm */}
+              <path
+                d="M151,143 C156,155 158,172 155,188 C150,191 143,186 142,178 C140,165 140,152 143,143 Z"
+                {...getMuscleStyle('forearms')}
+              />
               {/* Hands */}
-              <circle cx="37" cy="150" r="5" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <circle cx="123" cy="150" r="5" fill="#131722" stroke="#252e42" strokeWidth="1" />
+              <circle cx="45" cy="197" r="6" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+              <circle cx="155" cy="197" r="6" fill="#10131d" stroke="#252d40" strokeWidth="1" />
 
-              {/* Abdominals (Core) */}
+              {/* Serratus Anterior & Obliques (Flanks) */}
+              {/* Left Serratus */}
               <path
-                d="M72,90 L88,90 L88,100 L72,100 Z M72,103 L88,103 L88,113 L72,113 Z M72,116 L88,116 L88,128 L72,128 Z"
-                {...getMuscleColor('abs')}
+                d="M71,114 C73,123 75,134 77,145 C80,147 82,146 82,142 C80,131 78,121 75,114 Z"
+                {...getMuscleStyle('obliques')}
               />
-
-              {/* Obliques (Flanks) */}
+              {/* Left Obliques */}
               <path
-                d="M58,88 C62,98 62,112 64,126 C68,128 70,128 70,124 C68,110 68,98 64,88 Z"
-                {...getMuscleColor('obliques')}
+                d="M74,146 C77,158 79,173 81,186 C85,188 88,187 87,181 C85,168 83,156 79,146 Z"
+                {...getMuscleStyle('obliques')}
               />
+              {/* Right Serratus */}
               <path
-                d="M102,88 C98,98 98,112 96,126 C92,128 90,128 90,124 C92,110 92,98 96,88 Z"
-                {...getMuscleColor('obliques')}
+                d="M129,114 C127,123 125,134 123,145 C120,147 118,146 118,142 C120,131 122,121 125,114 Z"
+                {...getMuscleStyle('obliques')}
               />
-
-              {/* Pelvis & Hips */}
+              {/* Right Obliques */}
               <path
-                d="M66,130 C74,134 86,134 94,130 L98,144 C90,148 70,148 62,144 Z"
-                fill="#131722"
-                stroke="#252e42"
-                strokeWidth="1"
+                d="M126,146 C123,158 121,173 119,186 C115,188 112,187 113,181 C115,168 117,156 121,146 Z"
+                {...getMuscleStyle('obliques')}
               />
 
-              {/* Quadriceps (Left & Right Thighs) */}
+              {/* Rectus Abdominis (Six-Pack Core Segments) */}
+              {/* Upper Pack Left */}
+              <rect x="85" y="118" width="13" height="13" rx="3" {...getMuscleStyle('abs')} />
+              {/* Upper Pack Right */}
+              <rect x="102" y="118" width="13" height="13" rx="3" {...getMuscleStyle('abs')} />
+              {/* Mid Pack Left */}
+              <rect x="85" y="134" width="13" height="14" rx="3" {...getMuscleStyle('abs')} />
+              {/* Mid Pack Right */}
+              <rect x="102" y="134" width="13" height="14" rx="3" {...getMuscleStyle('abs')} />
+              {/* Lower Pack Left */}
+              <rect x="86" y="151" width="12" height="16" rx="3" {...getMuscleStyle('abs')} />
+              {/* Lower Pack Right */}
+              <rect x="102" y="151" width="12" height="16" rx="3" {...getMuscleStyle('abs')} />
+              {/* Lower Abdominal V-Taper */}
+              <path d="M86,170 Q100,186 100,188 Q100,186 114,170 Z" {...getMuscleStyle('abs')} />
+
+              {/* Pelvis & Hips Base */}
+              <path d="M81,188 Q100,192 119,188 L123,205 Q100,211 77,205 Z" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+
+              {/* Quadriceps Femoris (Thighs: Rectus Femoris, Vastus Lateralis & Medialis Teardrop) */}
+              {/* Left Quadriceps (Rectus femoris & vastus lateralis) */}
               <path
-                d="M62,146 C58,162 58,186 64,204 C70,206 76,204 78,198 C82,180 82,160 76,146 Z"
-                {...getMuscleColor('quads')}
+                d="M77,208 C71,230 71,262 78,287 C86,290 94,286 96,278 C100,254 101,227 94,208 Z"
+                {...getMuscleStyle('quads')}
               />
+              {/* Left Vastus Medialis (Teardrop above knee) */}
               <path
-                d="M98,146 C102,162 102,186 96,204 C90,206 84,204 82,198 C78,180 78,160 84,146 Z"
-                {...getMuscleColor('quads')}
+                d="M87,272 C87,284 91,296 95,299 C98,299 100,294 100,286 C98,276 94,271 87,272 Z"
+                {...getMuscleStyle('quads')}
               />
 
-              {/* Knees */}
-              <circle cx="70" cy="210" r="5" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <circle cx="90" cy="210" r="5" fill="#131722" stroke="#252e42" strokeWidth="1" />
-
-              {/* Calves / Shins (Anterior) */}
+              {/* Right Quadriceps */}
               <path
-                d="M66,218 C62,230 62,254 66,272 C70,274 74,272 75,264 C76,250 76,232 74,218 Z"
-                {...getMuscleColor('calves')}
+                d="M123,208 C129,230 129,262 122,287 C114,290 106,286 104,278 C100,254 99,227 106,208 Z"
+                {...getMuscleStyle('quads')}
               />
+              {/* Right Vastus Medialis (Teardrop above knee) */}
               <path
-                d="M94,218 C98,230 98,254 94,272 C90,274 86,272 85,264 C84,250 84,232 86,218 Z"
-                {...getMuscleColor('calves')}
+                d="M113,272 C113,284 109,296 105,299 C102,299 100,294 100,286 C102,276 106,271 113,272 Z"
+                {...getMuscleStyle('quads')}
               />
 
-              {/* Feet */}
-              <path d="M64,274 L74,274 L76,288 L60,288 Z" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <path d="M96,274 L86,274 L84,288 L100,288 Z" fill="#131722" stroke="#252e42" strokeWidth="1" />
+              {/* Knees & Patellar Tendon */}
+              <circle cx="86" cy="305" r="7" fill="url(#jointGradient)" stroke="#252d40" strokeWidth="1" />
+              <circle cx="114" cy="305" r="7" fill="url(#jointGradient)" stroke="#252d40" strokeWidth="1" />
+
+              {/* Calves & Shins (Anterior) */}
+              {/* Left Calf / Tibialis Anterior */}
+              <path
+                d="M81,316 C76,330 76,362 81,386 C86,389 91,386 93,376 C95,358 95,334 92,316 Z"
+                {...getMuscleStyle('calves')}
+              />
+              {/* Right Calf / Tibialis Anterior */}
+              <path
+                d="M119,316 C124,330 124,362 119,386 C114,389 109,386 107,376 C105,358 105,334 108,316 Z"
+                {...getMuscleStyle('calves')}
+              />
+
+              {/* Feet Base */}
+              <path d="M78,390 L92,390 L95,410 L73,410 Z" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+              <path d="M122,390 L108,390 L105,410 L127,410 Z" fill="#10131d" stroke="#252d40" strokeWidth="1" />
             </svg>
           </div>
         )}
 
-        {/* POSTERIOR (BACK) BODY */}
+        {/* ======================================================== */}
+        {/* 2. POSTERIOR (BACK) REALISTIC ANATOMY                   */}
+        {/* ======================================================== */}
         {(viewMode === 'both' || viewMode === 'back') && (
           <div className="flex flex-col items-center">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Back
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5 px-2.5 py-0.5 rounded-full bg-[#131722] border border-[#222a3d]">
+              Posterior View
             </span>
+
             <svg
-              viewBox="0 0 160 300"
-              className="w-28 sm:w-32 h-52 sm:h-60 transition-transform duration-200"
+              viewBox="0 0 200 440"
+              className={`transition-all duration-300 drop-shadow-xl ${
+                viewMode === 'back'
+                  ? 'h-[320px] xs:h-[350px] sm:h-[400px] w-auto'
+                  : 'h-[250px] sm:h-[300px] w-auto'
+              }`}
             >
-              {/* Back Head & Neck */}
-              <circle cx="80" cy="22" r="14" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <path d="M74,36 L86,36 L88,48 L72,48 Z" fill="#131722" stroke="#252e42" strokeWidth="1" />
+              {/* Silhouette Base Back Head */}
+              <ellipse cx="100" cy="30" rx="15" ry="19" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+              <path d="M92,48 L108,48 L109,64 L91,64 Z" fill="#111520" stroke="#252d40" strokeWidth="1" />
 
-              {/* Trapezius (Diamond Back Shape) */}
+              {/* Trapezius (The Classic Anatomical Diamond/Kite) */}
               <path
-                d="M74,44 L86,44 L100,54 L88,86 L80,94 L72,86 L60,54 Z"
-                {...getMuscleColor('traps')}
-              />
-
-              {/* Rear Deltoids (Left & Right) */}
-              <path
-                d="M58,54 C50,58 46,66 46,74 C46,80 50,84 56,82 C58,74 60,64 62,56 Z"
-                {...getMuscleColor('rear_delts')}
-              />
-              <path
-                d="M102,54 C110,58 114,66 114,74 C114,80 110,84 104,82 C102,74 100,64 98,56 Z"
-                {...getMuscleColor('rear_delts')}
+                d="M91,52 L109,52 L126,65 L112,106 L100,120 L88,106 L74,65 Z"
+                {...getMuscleStyle('traps')}
               />
 
-              {/* Triceps (Left & Right) */}
+              {/* Scapular Stabilizers: Rhomboids & Infraspinatus */}
+              {/* Left Rhomboid/Infraspinatus */}
               <path
-                d="M44,76 C38,84 38,98 40,108 C44,110 50,106 52,98 C54,88 52,80 46,76 Z"
-                {...getMuscleColor('triceps')}
+                d="M78,82 L88,88 L86,112 L76,104 Z"
+                {...getMuscleStyle('rhomboids')}
               />
+              {/* Right Rhomboid/Infraspinatus */}
               <path
-                d="M116,76 C122,84 122,98 120,108 C116,110 110,106 108,98 C106,88 108,80 114,76 Z"
-                {...getMuscleColor('triceps')}
-              />
-
-              {/* Forearms Rear */}
-              <path
-                d="M40,110 C36,122 36,134 38,144 C42,146 48,142 48,136 C50,126 48,116 46,110 Z"
-                {...getMuscleColor('forearms')}
-              />
-              <path
-                d="M120,110 C124,122 124,134 122,144 C118,146 112,142 112,136 C110,126 112,116 114,110 Z"
-                {...getMuscleColor('forearms')}
+                d="M122,82 L112,88 L114,112 L124,104 Z"
+                {...getMuscleStyle('rhomboids')}
               />
 
-              {/* Hands */}
-              <circle cx="37" cy="150" r="5" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <circle cx="123" cy="150" r="5" fill="#131722" stroke="#252e42" strokeWidth="1" />
-
-              {/* Latissimus Dorsi (Lats) */}
+              {/* Rear Deltoids (Posterior Shoulders) */}
+              {/* Left Rear Deltoid */}
               <path
-                d="M60,68 C56,82 58,104 68,118 C72,118 76,108 76,96 C72,86 66,76 60,68 Z"
-                {...getMuscleColor('lats')}
+                d="M72,66 C62,71 56,80 56,92 C56,100 61,105 69,102 C72,93 74,81 77,71 Z"
+                {...getMuscleStyle('rear_delts')}
               />
+              {/* Right Rear Deltoid */}
               <path
-                d="M100,68 C104,82 102,104 92,118 C88,118 84,108 84,96 C88,86 94,76 100,68 Z"
-                {...getMuscleColor('lats')}
+                d="M128,66 C138,71 144,80 144,92 C144,100 139,105 131,102 C128,93 126,81 123,71 Z"
+                {...getMuscleStyle('rear_delts')}
               />
 
-              {/* Rhomboids */}
+              {/* Triceps Brachii (Posterior Upper Arm: Lateral & Long Heads) */}
+              {/* Left Triceps */}
               <path
-                d="M66,66 L74,70 L74,86 L66,80 Z M94,66 L86,70 L86,86 L94,80 Z"
-                {...getMuscleColor('rhomboids')}
+                d="M54,100 C47,109 46,126 50,140 C55,143 62,138 65,128 C67,117 66,107 59,100 Z"
+                {...getMuscleStyle('triceps')}
+              />
+              {/* Right Triceps */}
+              <path
+                d="M146,100 C153,109 154,126 150,140 C145,143 138,138 135,128 C133,117 134,107 141,100 Z"
+                {...getMuscleStyle('triceps')}
               />
 
-              {/* Lower Back / Erector Spinae */}
+              {/* Posterior Forearms (Extensors) */}
+              {/* Left Forearm Extensor */}
               <path
-                d="M74,96 L86,96 L88,132 L72,132 Z"
-                {...getMuscleColor('lower_back')}
+                d="M50,142 C45,154 43,171 46,187 C51,190 58,185 59,177 C61,164 61,151 58,142 Z"
+                {...getMuscleStyle('forearms')}
+              />
+              {/* Right Forearm Extensor */}
+              <path
+                d="M150,142 C155,154 157,171 154,187 C149,190 142,185 141,177 C139,164 139,151 142,142 Z"
+                {...getMuscleStyle('forearms')}
+              />
+              {/* Hands Back */}
+              <circle cx="46" cy="197" r="6" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+              <circle cx="154" cy="197" r="6" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+
+              {/* Latissimus Dorsi (Lats: The Iconic V-Taper Wings) */}
+              {/* Left Lat Wing */}
+              <path
+                d="M74,86 C67,104 69,134 82,156 C88,155 93,142 93,126 C88,112 80,98 74,86 Z"
+                {...getMuscleStyle('lats')}
+              />
+              {/* Right Lat Wing */}
+              <path
+                d="M126,86 C133,104 131,134 118,156 C112,155 107,142 107,126 C112,112 120,98 126,86 Z"
+                {...getMuscleStyle('lats')}
               />
 
-              {/* Glutes (Buttocks) */}
+              {/* Lower Back / Erector Spinae (Lumbar Spinal Columns) */}
+              {/* Left Erector Spinae */}
               <path
-                d="M62,134 C58,146 58,162 66,172 C74,174 80,168 80,154 C80,144 74,136 62,134 Z"
-                {...getMuscleColor('glutes')}
+                d="M91,122 L99,122 L99,180 L90,178 Z"
+                {...getMuscleStyle('lower_back')}
               />
+              {/* Right Erector Spinae */}
               <path
-                d="M98,134 C102,146 102,162 94,172 C86,174 80,168 80,154 C80,144 86,136 98,134 Z"
-                {...getMuscleColor('glutes')}
-              />
-
-              {/* Hamstrings (Left & Right Posterior Thighs) */}
-              <path
-                d="M64,174 C60,190 60,202 66,212 C72,214 78,208 80,196 C82,184 76,174 64,174 Z"
-                {...getMuscleColor('hamstrings')}
-              />
-              <path
-                d="M96,174 C100,190 100,202 94,212 C88,214 82,208 80,196 C78,184 84,174 96,174 Z"
-                {...getMuscleColor('hamstrings')}
+                d="M101,122 L109,122 L110,178 L101,180 Z"
+                {...getMuscleStyle('lower_back')}
               />
 
-              {/* Knees (Popliteal) */}
-              <circle cx="70" cy="216" r="4" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <circle cx="90" cy="216" r="4" fill="#131722" stroke="#252e42" strokeWidth="1" />
-
-              {/* Calves (Gastrocnemius & Soleus) */}
+              {/* Gluteal Complex (Gluteus Medius & Maximus: Large Defined Buttocks) */}
+              {/* Left Gluteus Medius (Upper Lateral Hip) */}
               <path
-                d="M64,222 C58,236 60,256 66,270 C70,272 74,270 76,260 C78,246 76,232 72,222 Z"
-                {...getMuscleColor('calves')}
+                d="M73,178 C68,187 67,198 72,207 C78,208 86,203 89,195 C88,186 82,180 73,178 Z"
+                {...getMuscleStyle('glutes')}
               />
+              {/* Left Gluteus Maximus */}
               <path
-                d="M96,222 C102,236 100,256 94,270 C90,272 86,270 84,260 C82,246 84,232 88,222 Z"
-                {...getMuscleColor('calves')}
+                d="M76,192 C68,206 68,228 78,244 C88,247 98,238 99,220 C99,207 92,196 76,192 Z"
+                {...getMuscleStyle('glutes')}
               />
 
-              {/* Feet Back */}
-              <path d="M64,274 L74,274 L74,286 L62,286 Z" fill="#131722" stroke="#252e42" strokeWidth="1" />
-              <path d="M96,274 L86,274 L86,286 L98,286 Z" fill="#131722" stroke="#252e42" strokeWidth="1" />
+              {/* Right Gluteus Medius */}
+              <path
+                d="M127,178 C132,187 133,198 128,207 C122,208 114,203 111,195 C112,186 118,180 127,178 Z"
+                {...getMuscleStyle('glutes')}
+              />
+              {/* Right Gluteus Maximus */}
+              <path
+                d="M124,192 C132,206 132,228 122,244 C112,247 102,238 101,220 C101,207 108,196 124,192 Z"
+                {...getMuscleStyle('glutes')}
+              />
+
+              {/* Hamstrings (Posterior Thigh: Biceps Femoris, Semitendinosus & Semimembranosus) */}
+              {/* Left Hamstring Group */}
+              <path
+                d="M78,246 C73,266 73,284 80,300 C88,303 96,295 98,280 C100,264 94,248 78,246 Z"
+                {...getMuscleStyle('hamstrings')}
+              />
+              {/* Right Hamstring Group */}
+              <path
+                d="M122,246 C127,266 127,284 120,300 C112,303 104,295 102,280 C100,264 106,248 122,246 Z"
+                {...getMuscleStyle('hamstrings')}
+              />
+
+              {/* Popliteal Fossa (Back of Knees) */}
+              <ellipse cx="86" cy="309" rx="6" ry="5" fill="url(#jointGradient)" stroke="#252d40" strokeWidth="1" />
+              <ellipse cx="114" cy="309" rx="6" ry="5" fill="url(#jointGradient)" stroke="#252d40" strokeWidth="1" />
+
+              {/* Calves (Gastrocnemius Medial & Lateral Heads, Soleus, Achilles) */}
+              {/* Left Calf Gastrocnemius */}
+              <path
+                d="M78,316 C71,332 73,358 81,376 C87,378 93,374 95,362 C98,344 95,328 89,316 Z"
+                {...getMuscleStyle('calves')}
+              />
+              {/* Right Calf Gastrocnemius */}
+              <path
+                d="M122,316 C129,332 127,358 119,376 C113,378 107,374 105,362 C102,344 105,328 111,316 Z"
+                {...getMuscleStyle('calves')}
+              />
+
+              {/* Achilles Tendon & Feet Back */}
+              <path d="M83,380 L89,380 L91,406 L81,406 Z" fill="#10131d" stroke="#252d40" strokeWidth="1" />
+              <path d="M117,380 L111,380 L109,406 L119,406 Z" fill="#10131d" stroke="#252d40" strokeWidth="1" />
             </svg>
           </div>
         )}
       </div>
 
-      {/* Muscle Labels Legend */}
-      <div className="w-full mt-2 pt-2 border-t border-[#1a202e] flex flex-wrap items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-1.5">
-          <span className="w-3 h-3 rounded-md bg-[#ccff00] border border-[#e6ff80]/50 shadow-sm shadow-[#ccff00]/40" />
-          <span className="font-extrabold text-white text-[11px]">Primary:</span>
-          <span className="text-[#ccff00] font-bold text-[11px] capitalize">
-            {primaryLabel || primaryMuscles.map((m) => m.replace(/_/g, ' ')).join(', ')}
-          </span>
-        </div>
-
-        {secondaryMuscles.length > 0 && (
-          <div className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-md bg-[#fb923c] border border-[#fdba74]/50 shadow-sm shadow-[#fb923c]/40" />
-            <span className="font-bold text-slate-400 text-[11px]">Assisting:</span>
-            <span className="text-orange-300 font-semibold text-[11px] capitalize">
-              {secondaryLabel.length > 0
-                ? secondaryLabel.join(', ')
-                : secondaryMuscles.map((m) => m.replace(/_/g, ' ')).join(', ')}
+      {/* Clear Anatomical Muscle Legend & Activation Badges */}
+      <div className="w-full relative z-10 mt-3 pt-3 border-t border-[#1a2030] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 text-xs">
+        {/* Left: Highlight Chips */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Primary Target Chip */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#ccff00]/10 border border-[#ccff00]/30 shadow-sm shadow-[#ccff00]/15">
+            <span className="w-2.5 h-2.5 rounded-full bg-[#ccff00] shadow-sm shadow-[#ccff00]" />
+            <span className="font-black text-white text-[11px] uppercase tracking-wider">Primary:</span>
+            <span className="text-[#ccff00] font-extrabold text-[11px] capitalize">
+              {primaryLabel || primaryMuscles.map(formatMuscleName).join(', ')}
             </span>
           </div>
-        )}
+
+          {/* Assisting / Secondary Chip */}
+          {secondaryMuscles.length > 0 && (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-orange-500/10 border border-orange-500/30 shadow-sm shadow-orange-500/15">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f97316] shadow-sm shadow-orange-500" />
+              <span className="font-black text-slate-300 text-[11px] uppercase tracking-wider">Assisting:</span>
+              <span className="text-orange-300 font-bold text-[11px] capitalize">
+                {secondaryLabel.length > 0
+                  ? secondaryLabel.join(', ')
+                  : secondaryMuscles.map(formatMuscleName).join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Bilateral activation note */}
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-medium">
+          <CheckCircle2 size={13} className="text-[#ccff00]" />
+          <span>Bilateral symmetric activation</span>
+        </div>
       </div>
     </div>
   );
