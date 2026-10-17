@@ -208,12 +208,17 @@ BEGIN
   INSERT INTO public.profiles (id, email, username, display_name, avatar_url)
   VALUES (
     NEW.id,
-    NEW.email,
+    COALESCE(NEW.email, 'user_' || SUBSTRING(NEW.id::text, 1, 8) || '@gymcrew.app'),
     -- Default temporary username from email prefix; user can customize in onboarding
-    LOWER(REGEXP_REPLACE(SPLIT_PART(NEW.email, '@', 1), '[^a-zA-Z0-9_]', '', 'g')) || '_' || SUBSTRING(NEW.id::text, 1, 4),
-    COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
+    LOWER(REGEXP_REPLACE(SPLIT_PART(COALESCE(NEW.email, 'bro'), '@', 1), '[^a-zA-Z0-9_]', '', 'g')) || '_' || SUBSTRING(REPLACE(NEW.id::text, '-', ''), 1, 4),
+    COALESCE(NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1), 'Gym Bro'),
     NEW.raw_user_meta_data->>'avatar_url'
-  );
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    avatar_url = COALESCE(EXCLUDED.avatar_url, public.profiles.avatar_url),
+    display_name = COALESCE(public.profiles.display_name, EXCLUDED.display_name),
+    updated_at = timezone('utc'::text, now());
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
