@@ -144,7 +144,7 @@ const MainAppContent: React.FC = () => {
   const selectedDateAvail = getSelectedDateAvailability();
 
   return (
-    <div className="min-h-screen bg-[#090a0f] text-slate-100 flex flex-col pb-20 lg:pb-12">
+    <div className="min-h-screen bg-[#090a0f] text-slate-100 flex flex-col pb-28 lg:pb-12">
       {/* Demo / Cloud Status Banner */}
       <AuthPromptBanner />
 

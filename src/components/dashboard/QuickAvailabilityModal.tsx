@@ -183,7 +183,7 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
               </label>
               <input
                 type="text"
-                placeholder="e.g. 06:30 AM or 18:00"
+                placeholder="e.g. 6:30 AM or 6:00 PM"
                 value={preferredTime}
                 onChange={(e) => setPreferredTime(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#161a25] border border-[#262c3e] text-white placeholder-slate-500 text-sm focus:outline-none focus:border-[#ccff00] transition-colors"

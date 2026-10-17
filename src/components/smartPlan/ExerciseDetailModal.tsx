@@ -66,7 +66,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
             svgType={exercise.svgType}
             name={exercise.name}
             targetMuscle={exercise.targetMuscle}
-            className="w-full h-44"
+            className="w-full h-56 sm:h-64"
           />
 
           {/* Quick Metrics Bar */}

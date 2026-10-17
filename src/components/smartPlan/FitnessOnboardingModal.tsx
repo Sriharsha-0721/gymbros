@@ -381,7 +381,7 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
                           type="text"
                           inputMode="numeric"
                           pattern="[0-9]*"
-                          value={heightInches > 0 ? heightInches : (heightInches === 0 && heightFeet > 0 ? '0' : '')}
+                          value={heightInches > 0 ? String(heightInches) : ''}
                           onChange={(e) => handleInchesChange(e.target.value)}
                           placeholder="0"
                           className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold text-center focus:border-[#ccff00] focus:outline-none"

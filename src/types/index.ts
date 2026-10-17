@@ -37,7 +37,7 @@ export interface DailyAvailability {
   user_id: string;
   date: string; // YYYY-MM-DD format (local date)
   status: GymStatus;
-  preferred_time?: string; // e.g. "06:30 AM" or "18:00"
+  preferred_time?: string; // e.g. "6:30 AM" or "6:00 PM"
   notes?: string; // e.g. "Chest & Triceps"
   updated_at: string;
   profile?: UserProfile;

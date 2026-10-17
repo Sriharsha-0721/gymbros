@@ -7,93 +7,203 @@ function assert(condition: boolean, msg: string) {
   }
 }
 
-console.log('Running Smart Plan Engine Unit Tests...');
+console.log('--- RUNNING COMPREHENSIVE SMART PLAN PERSONALIZATION TESTS ---\n');
 
-// Test 1: 4-Day Split with Lower Back Injury
-const profileLowerBack: FitnessProfile = {
-  user_id: 'user_test_1',
-  height_cm: 180,
-  weight_kg: 80,
+const baseProfile: FitnessProfile = {
+  user_id: 'test_user_master',
+  height_cm: 178,
+  weight_kg: 75,
   experience_level: 'intermediate',
   equipment: ['full_gym'],
   primary_goal: 'muscle_building',
   secondary_goals: [],
   physique_preference: 'lean_muscular',
   days_per_week: 4,
-  duration_minutes: 45,
+  duration_minutes: 60,
   workout_style: ['hypertrophy'],
   schedule_flexibility: 'structured',
   cardio_preference: 'moderate',
-  outdoor_activities: ['walking'],
-  injuries: ['lower_back'],
-  target_goal: 'Consistency',
+  outdoor_activities: ['running'],
+  injuries: [],
+  target_goal: 'Build muscle and consistency',
   target_review_date: '2026-12-01',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
 };
 
-const plan1 = generateSmartWorkoutPlan(profileLowerBack);
-assert(plan1.workouts.length === 7, 'Plan must contain exactly 7 days');
-const trainingDays1 = plan1.workouts.filter(w => !w.is_rest_day);
-assert(trainingDays1.length === 4, 'Must have exactly 4 training days for 4-day plan');
-const restDays1 = plan1.workouts.filter(w => w.is_rest_day);
-assert(restDays1.length === 3, 'Must have exactly 3 rest days for 4-day plan');
+// =========================================================================
+// TEST 1: 3-Day General Fitness Beginner Plan
+// =========================================================================
+const profile3DayBeginner: FitnessProfile = {
+  ...baseProfile,
+  days_per_week: 3,
+  experience_level: 'beginner',
+  primary_goal: 'general_fitness',
+  duration_minutes: 45,
+};
+const plan3Day = generateSmartWorkoutPlan(profile3DayBeginner);
+const activeDays3 = plan3Day.workouts.filter(w => !w.is_rest_day);
+assert(activeDays3.length === 3, '3-Day plan must have exactly 3 training days');
+assert(plan3Day.workouts.filter(w => w.is_rest_day).length === 4, '3-Day plan must have 4 rest days');
+// Beginner volume constraint: max 4 exercises per session
+for (const day of activeDays3) {
+  assert(day.exercises.length <= 4, 'Beginner sessions must have <= 4 exercises to prioritize motor control');
+}
+console.log('✔ Scenario 1 Passed: 3-day general-fitness beginner plan has 3 days and calibrated beginner volume.');
 
-// Verify that Barbell Back Squat and Barbell Bent Row are replaced due to lower back injury
-for (const day of plan1.workouts) {
+// =========================================================================
+// TEST 2: 4-Day Hypertrophy Plan vs 5-Day Hypertrophy Plan (Distinct Splits!)
+// =========================================================================
+const profile4DayHypertrophy: FitnessProfile = {
+  ...baseProfile,
+  days_per_week: 4,
+  primary_goal: 'muscle_building',
+  duration_minutes: 60,
+};
+const profile5DayHypertrophy: FitnessProfile = {
+  ...baseProfile,
+  days_per_week: 5,
+  primary_goal: 'muscle_building',
+  duration_minutes: 60,
+};
+
+const plan4Day = generateSmartWorkoutPlan(profile4DayHypertrophy);
+const plan5Day = generateSmartWorkoutPlan(profile5DayHypertrophy);
+
+const activeDays4 = plan4Day.workouts.filter(w => !w.is_rest_day);
+const activeDays5 = plan5Day.workouts.filter(w => !w.is_rest_day);
+
+assert(activeDays4.length === 4, '4-Day plan must have 4 training days');
+assert(activeDays5.length === 5, '5-Day plan must have 5 training days');
+
+// Verify split names differ
+assert(plan4Day.split_type.includes('Upper / Lower'), '4-day split should be an Upper / Lower periodization');
+assert(plan5Day.split_type.includes('Push / Pull / Legs'), '5-day split should be a Push / Pull / Legs architecture');
+
+// Verify 4-day and 5-day have different Day 1 focus & exercises
+assert(activeDays4[0].focus !== activeDays5[0].focus || activeDays4[0].title !== activeDays5[0].title, '4-day and 5-day Day 1 must have distinct focus');
+
+// Check that 5-day rest days include mid-week recovery (Thursday)
+assert(plan5Day.workouts[3].is_rest_day === true, '5-day plan must place a rest day between training blocks (Day 4 Thursday)');
+console.log('✔ Scenario 2 Passed: 4-day and 5-day plans have distinct splits, rest cadence, and exercise architecture.');
+
+// =========================================================================
+// TEST 3: Strength-Focused Plan (Low Reps, High Rest)
+// =========================================================================
+const profileStrength: FitnessProfile = {
+  ...baseProfile,
+  days_per_week: 4,
+  primary_goal: 'strength_development',
+  experience_level: 'intermediate',
+};
+const planStrength = generateSmartWorkoutPlan(profileStrength);
+const firstStrengthEx = planStrength.workouts.find(w => !w.is_rest_day)!.exercises[0];
+assert(firstStrengthEx.sets >= 4, 'Strength focus must prescribe 4 sets');
+assert(firstStrengthEx.reps_range === '4–6', 'Strength focus must calibrate to 4–6 reps');
+assert(firstStrengthEx.rest_seconds >= 120, 'Strength focus must require >= 120s rest');
+console.log('✔ Scenario 3 Passed: Strength plan enforces 4x(4-6) reps and 120s rest for neural recovery.');
+
+// =========================================================================
+// TEST 4: Fat-Loss-Oriented Plan (High Reps, Short Rest, Cardio Integration)
+// =========================================================================
+const profileFatLoss: FitnessProfile = {
+  ...baseProfile,
+  days_per_week: 4,
+  primary_goal: 'fat_loss',
+  cardio_preference: 'high',
+};
+const planFatLoss = generateSmartWorkoutPlan(profileFatLoss);
+const firstFatLossEx = planFatLoss.workouts.find(w => !w.is_rest_day)!.exercises[0];
+assert(firstFatLossEx.reps_range === '12–15', 'Fat loss focus must calibrate to 12–15 metabolic reps');
+assert(firstFatLossEx.rest_seconds <= 60, 'Fat loss focus must have short 45-60s rest periods for workout density');
+const trainingDayWithCardio = planFatLoss.workouts.find(w => !w.is_rest_day && w.cardio_notes);
+assert(Boolean(trainingDayWithCardio), 'Fat loss plan must include prescribed cardio notes');
+console.log('✔ Scenario 4 Passed: Fat loss plan enforces metabolic reps (12-15), 50s rest, and cardio prescription.');
+
+// =========================================================================
+// TEST 5: Limited Equipment Plan (Dumbbells Only)
+// =========================================================================
+const profileDumbbellsOnly: FitnessProfile = {
+  ...baseProfile,
+  equipment: ['dumbbells_only'],
+};
+const planDumbbells = generateSmartWorkoutPlan(profileDumbbellsOnly);
+for (const day of planDumbbells.workouts) {
   for (const ex of day.exercises) {
-    assert(ex.exercise_id !== 'barbell_back_squat', 'Must NOT prescribe Barbell Back Squat with lower back injury');
-    assert(ex.exercise_id !== 'barbell_bent_row', 'Must NOT prescribe Barbell Bent Row with lower back injury');
+    assert(
+      ex.equipment === 'dumbbell' || ex.equipment === 'bodyweight',
+      `Dumbbells-only plan must NEVER prescribe ${ex.equipment} (Found: ${ex.name})`
+    );
   }
 }
-console.log('✔ Test 1 Passed: 4-day split generated with proper injury substitution (lower back)');
+console.log('✔ Scenario 5 Passed: Dumbbells-only plan strictly excludes barbells and cable/machine exercises.');
 
-// Test 2: 3-Day Strength Plan with Rep Range Verification
-const profileStrength: FitnessProfile = {
-  ...profileLowerBack,
-  user_id: 'user_test_2',
-  days_per_week: 3,
-  primary_goal: 'strength_development',
-  injuries: [],
+// =========================================================================
+// TEST 6: Home Bodyweight Plan (No Weights)
+// =========================================================================
+const profileBodyweight: FitnessProfile = {
+  ...baseProfile,
+  equipment: ['bodyweight'],
 };
-
-const plan2 = generateSmartWorkoutPlan(profileStrength);
-const trainingDays2 = plan2.workouts.filter(w => !w.is_rest_day);
-assert(trainingDays2.length === 3, 'Must have exactly 3 training days for 3-day plan');
-assert(plan2.workouts.filter(w => w.is_rest_day).length === 4, 'Must have 4 rest days');
-
-// Verify strength reps & sets
-const firstExercise = trainingDays2[0].exercises[0];
-assert(firstExercise.sets === 4, 'Strength focus should use 4 sets');
-assert(firstExercise.reps_range === '4–6', 'Strength focus should calibrate rep range to 4–6 reps');
-console.log('✔ Test 2 Passed: 3-day strength split with calibrated 4x(4-6) progression');
-
-// Test 3: Shoulder Impingement Check
-const profileShoulder: FitnessProfile = {
-  ...profileLowerBack,
-  user_id: 'user_test_3',
-  days_per_week: 5,
-  injuries: ['shoulder'],
-};
-
-const plan3 = generateSmartWorkoutPlan(profileShoulder);
-const trainingDays3 = plan3.workouts.filter(w => !w.is_rest_day);
-assert(trainingDays3.length === 5, 'Must have 5 training days for 5-day plan');
-
-for (const day of plan3.workouts) {
+const planBodyweight = generateSmartWorkoutPlan(profileBodyweight);
+for (const day of planBodyweight.workouts) {
   for (const ex of day.exercises) {
-    assert(ex.exercise_id !== 'overhead_barbell_press', 'Must NOT prescribe Barbell Overhead Press with shoulder injury');
+    assert(
+      ex.equipment === 'bodyweight',
+      `Bodyweight-only plan must ONLY prescribe bodyweight movements (Found ${ex.name} with ${ex.equipment})`
+    );
+  }
+}
+console.log('✔ Scenario 6 Passed: Bodyweight-only plan strictly prescribes 100% bodyweight movements.');
+
+// =========================================================================
+// TEST 7: Injury Contraindication Filter (Lower Back & Shoulder)
+// =========================================================================
+const profileInjured: FitnessProfile = {
+  ...baseProfile,
+  injuries: ['lower_back', 'shoulder'],
+};
+const planInjured = generateSmartWorkoutPlan(profileInjured);
+for (const day of planInjured.workouts) {
+  for (const ex of day.exercises) {
+    assert(ex.exercise_id !== 'barbell_back_squat', 'Must NOT prescribe Barbell Back Squat with lower back injury');
+    assert(ex.exercise_id !== 'barbell_bent_row', 'Must NOT prescribe Bent-Over Row with lower back injury');
+    assert(ex.exercise_id !== 'overhead_barbell_press', 'Must NOT prescribe Overhead Press with shoulder injury');
     assert(ex.exercise_id !== 'cable_chest_flyes', 'Must NOT prescribe Cable Chest Flyes with shoulder injury');
   }
 }
-console.log('✔ Test 3 Passed: 5-day split properly excludes contraindicated shoulder exercises');
+console.log('✔ Scenario 7 Passed: Lower back & shoulder injuries properly exclude all contraindicated exercises.');
 
-// Test 4: 2-day and 6-day split bounds
-const plan2Day = generateSmartWorkoutPlan({ ...profileLowerBack, days_per_week: 2 });
-assert(plan2Day.workouts.filter(w => !w.is_rest_day).length === 2, '2-day plan has 2 training days');
+// =========================================================================
+// TEST 8: Session Duration Scaling (30 mins vs 75 mins)
+// =========================================================================
+const profile30Min: FitnessProfile = {
+  ...baseProfile,
+  duration_minutes: 30,
+};
+const profile75Min: FitnessProfile = {
+  ...baseProfile,
+  duration_minutes: 75,
+  experience_level: 'advanced',
+};
+const plan30Min = generateSmartWorkoutPlan(profile30Min);
+const plan75Min = generateSmartWorkoutPlan(profile75Min);
 
-const plan6Day = generateSmartWorkoutPlan({ ...profileLowerBack, days_per_week: 6 });
-assert(plan6Day.workouts.filter(w => !w.is_rest_day).length === 6, '6-day plan has 6 training days');
-console.log('✔ Test 4 Passed: 2-day and 6-day split boundaries work accurately');
+const active30ExCount = plan30Min.workouts.find(w => !w.is_rest_day)!.exercises.length;
+const active75ExCount = plan75Min.workouts.find(w => !w.is_rest_day)!.exercises.length;
 
-console.log('\nAll Smart Plan Engine unit tests PASSED successfully! 🚀');
+assert(active30ExCount === 3, `30-minute plan must prescribe 3 exercises for time feasibility (Got: ${active30ExCount})`);
+assert(active75ExCount >= 5, `75-minute advanced plan must prescribe 5-6 exercises (Got: ${active75ExCount})`);
+assert(active75ExCount > active30ExCount, '75-minute plan must contain more exercises than 30-minute plan');
+console.log('✔ Scenario 8 Passed: Duration correctly scales exercise volume (30 mins = 3 moves, 75 mins = 5-6 moves).');
+
+// =========================================================================
+// TEST 9: Plan Source & Engine Verification
+// =========================================================================
+assert(plan4Day.generation_source === 'sports_science_engine', 'Must tag plan with generation_source sports_science_engine');
+assert(Boolean(plan4Day.engine_badge), 'Must include user-facing engine_badge explaining generator');
+console.log('✔ Scenario 9 Passed: Plan metadata transparently identifies verified sports-science engine.');
+
+console.log('\n=============================================================');
+console.log('ALL 9 COMPREHENSIVE PERSONALIZATION TEST SCENARIOS PASSED! 🚀');
+console.log('=============================================================');

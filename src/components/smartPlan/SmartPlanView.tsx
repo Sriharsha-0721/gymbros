@@ -194,6 +194,10 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#1b1f2b] text-slate-300 border border-[#2a3042] font-semibold">
                   {profile.experience_level}
                 </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#ccff00]/10 text-[#ccff00] border border-[#ccff00]/30 font-bold flex items-center gap-1">
+                  <Sparkles size={10} />
+                  <span>{activePlan.engine_badge || 'Sports-Science Deterministic Engine (Offline & Verified)'}</span>
+                </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold ${
                   syncStatus === 'synced' 
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 

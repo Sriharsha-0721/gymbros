@@ -126,6 +126,8 @@ export interface WorkoutPlan {
   is_active: boolean;
   summary: string;
   progression_notes?: string;
+  generation_source?: 'sports_science_engine' | 'ai_flash_engine';
+  engine_badge?: string;
   created_at: string;
   updated_at: string;
   workouts: PlannedWorkout[];
