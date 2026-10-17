@@ -61,12 +61,15 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
   const [substitutingExercise, setSubstitutingExercise] = useState<{ workoutId: string; exerciseId: string; name: string } | null>(null);
   const [liveSessionWorkout, setLiveSessionWorkout] = useState<PlannedWorkout | null>(null);
 
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(1);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-
   // Determine current day of week (1 = Mon, 7 = Sun)
   const currentJsDay = new Date().getDay(); // 0 is Sun, 1 is Mon...
   const currentDayIndex = currentJsDay === 0 ? 7 : currentJsDay;
+
+  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(() => {
+    const jsDay = new Date().getDay();
+    return jsDay === 0 ? 7 : jsDay;
+  });
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const todayWorkout = activePlan?.workouts.find((w) => w.day_index === currentDayIndex);
   const selectedWorkout = activePlan?.workouts.find((w) => w.day_index === selectedDayIndex) || todayWorkout;
@@ -92,11 +95,15 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
     }
   };
 
-  const handleOpenExerciseGuide = (exerciseName: string) => {
-    const found = EXERCISE_DATABASE.find(
-      (e) => e.name.toLowerCase() === exerciseName.toLowerCase() ||
-             exerciseName.toLowerCase().includes(e.name.toLowerCase())
-    );
+  const handleOpenExerciseGuide = (exerciseName: string, exerciseId?: string) => {
+    let found = exerciseId ? EXERCISE_DATABASE.find((e) => e.id === exerciseId) : null;
+    if (!found) {
+      found = EXERCISE_DATABASE.find(
+        (e) => e.name.toLowerCase() === exerciseName.toLowerCase() ||
+               e.name.toLowerCase().includes(exerciseName.toLowerCase()) ||
+               exerciseName.toLowerCase().includes(e.name.toLowerCase())
+      ) || null;
+    }
     if (found) {
       setSelectedExerciseForGuide(found);
     } else {
@@ -351,14 +358,15 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
                       {todayWorkout.exercises.map((ex, idx) => (
                         <button 
                           key={ex.id || idx}
-                          onClick={() => handleOpenExerciseGuide(ex.name)}
-                          className="px-2.5 py-1.5 rounded-lg bg-[#0b0c12] hover:bg-[#161a26] border border-[#1e2333] hover:border-[#ccff00]/40 text-xs text-slate-300 flex items-center gap-2 transition-all cursor-pointer"
-                          title="Click to view biomechanics guide"
+                          type="button"
+                          onClick={() => handleOpenExerciseGuide(ex.name, ex.exercise_id)}
+                          className="px-2.5 py-1.5 rounded-lg bg-[#0b0c12] hover:bg-[#161a26] active:bg-[#1d2232] border border-[#1e2333] hover:border-[#ccff00]/40 text-xs text-slate-300 flex items-center gap-2 transition-all cursor-pointer touch-manipulation"
+                          title="Click to view visual demonstration & form guide"
                         >
                           <span className="w-4 h-4 rounded-full bg-[#1b1f2b] text-[10px] font-bold text-[#ccff00] flex items-center justify-center">
                             {idx + 1}
                           </span>
-                          <span className="font-semibold">{ex.name}</span>
+                          <span className="font-semibold text-white">{ex.name}</span>
                           <span className="text-[11px] text-slate-500 font-mono">
                             {ex.sets} × {ex.reps_range}
                           </span>
@@ -371,12 +379,23 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
 
               {/* 7-Day Weekly Split Calendar */}
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <Calendar size={14} className="text-[#ccff00]" />
                     Weekly Training Split Schedule
                   </h3>
-                  <span className="text-[11px] text-slate-500">Tap any day to view & substitute exercises</span>
+                  <div className="flex items-center gap-2">
+                    {selectedDayIndex !== currentDayIndex && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDayIndex(currentDayIndex)}
+                        className="px-2.5 py-1 rounded-lg bg-[#ccff00]/15 hover:bg-[#ccff00]/25 text-[#ccff00] border border-[#ccff00]/30 text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        Jump to Today
+                      </button>
+                    )}
+                    <span className="text-[11px] text-slate-500 hidden sm:inline-block">Tap any day to view & substitute exercises</span>
+                  </div>
                 </div>
 
                 {/* Horizontal Day Selector */}
@@ -464,7 +483,7 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
                             className="p-3 rounded-xl bg-[#141722] border border-[#202536] flex items-center justify-between gap-3 hover:border-[#2d344a] transition-all"
                           >
                             <div 
-                              onClick={() => handleOpenExerciseGuide(ex.name)}
+                              onClick={() => handleOpenExerciseGuide(ex.name, ex.exercise_id)}
                               className="flex items-center gap-3 cursor-pointer group flex-1"
                             >
                               <div className="w-8 h-8 rounded-lg bg-[#0b0c12] border border-[#1e2333] flex items-center justify-center font-mono font-bold text-xs text-[#ccff00] group-hover:border-[#ccff00] transition-colors">

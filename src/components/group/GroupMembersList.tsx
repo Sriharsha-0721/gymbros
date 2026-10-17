@@ -27,6 +27,7 @@ interface GroupMembersListProps {
   onOpenJoinGroup: () => void;
   onOpenInviteModal: () => void;
   onLeaveGroup: (groupId: string) => void;
+  onOpenProfileModal?: () => void;
 }
 
 export const GroupMembersList: React.FC<GroupMembersListProps> = ({
@@ -40,6 +41,7 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
   onOpenJoinGroup,
   onOpenInviteModal,
   onLeaveGroup,
+  onOpenProfileModal,
 }) => {
   const [copied, setCopied] = useState(false);
 
@@ -289,6 +291,26 @@ export const GroupMembersList: React.FC<GroupMembersListProps> = ({
           })}
         </div>
       </Card>
+
+      {/* Account Settings & Log Out Action */}
+      {onOpenProfileModal && (
+        <div className="p-4 rounded-2xl bg-[#12141c] border border-[#1f2433] flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <Avatar src={currentUser.avatar_url} name={currentUser.display_name || currentUser.username} size="sm" />
+            <div className="min-w-0">
+              <span className="text-xs font-bold text-white block truncate">{currentUser.display_name || currentUser.username}</span>
+              <span className="text-[11px] text-slate-400 block truncate">@{currentUser.username}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onOpenProfileModal}
+            className="flex items-center gap-1.5 px-3.5 py-2 min-h-[44px] rounded-xl bg-[#1b1f2e] hover:bg-[#252c40] text-slate-200 hover:text-white border border-[#272e42] text-xs font-bold transition-all cursor-pointer touch-manipulation"
+          >
+            <span>Account & Log Out</span>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

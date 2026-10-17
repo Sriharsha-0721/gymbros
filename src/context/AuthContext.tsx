@@ -152,10 +152,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     if (configured && supabase) {
-      await supabase.auth.signOut();
+      try {
+        await supabase.auth.signOut();
+      } catch (err) {
+        console.warn('Supabase sign out error:', err);
+      }
     }
     setUser(null);
+    setNeedsOnboarding(false);
+    setError(null);
+
+    // Thoroughly clear all user-specific cached state from localStorage
     localStorage.removeItem(LOCAL_STORAGE_KEY_USER);
+    localStorage.removeItem('gymbros_active_group_id');
+    localStorage.removeItem('gymbros_groups');
+    localStorage.removeItem('gymbros_members');
+    localStorage.removeItem('gymbros_availabilities');
+    localStorage.removeItem('gymbros_workout_logs');
+    localStorage.removeItem('pending_join_code');
   };
 
   const updateProfile = async (updates: Partial<UserProfile>): Promise<boolean> => {

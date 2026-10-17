@@ -152,6 +152,60 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             localStorage.setItem(`${STORAGE_KEY_PLAN}_${user!.id}`, JSON.stringify(mappedPlan));
           }
 
+          // Fetch logged outdoor activities from Supabase
+          const { data: dbActivities, error: actErr } = await supabase
+            .from('activity_logs')
+            .select('*')
+            .eq('user_id', user!.id)
+            .order('activity_date', { ascending: false });
+
+          if (!actErr && dbActivities && dbActivities.length > 0) {
+            setActivityLogs(dbActivities);
+            localStorage.setItem(`${STORAGE_KEY_ACTIVITIES}_${user!.id}`, JSON.stringify(dbActivities));
+          }
+
+          // Fetch past workout sessions from Supabase
+          const { data: dbSessions, error: sessErr } = await supabase
+            .from('workout_sessions')
+            .select('*, exercise_set_logs(*)')
+            .eq('user_id', user!.id)
+            .order('session_date', { ascending: false });
+
+          if (!sessErr && dbSessions && dbSessions.length > 0) {
+            const mappedSessions: WorkoutSession[] = dbSessions.map((s: any) => ({
+              id: s.id,
+              user_id: s.user_id,
+              planned_workout_id: s.planned_workout_id,
+              session_date: s.session_date,
+              title: s.title,
+              status: s.status,
+              duration_minutes: s.duration_minutes || 0,
+              started_at: s.started_at,
+              completed_at: s.completed_at,
+              notes: s.notes || '',
+              rescheduled_to: s.rescheduled_to,
+              sets: (s.exercise_set_logs || [])
+                .map((st: any) => ({
+                  id: st.id,
+                  session_id: st.session_id,
+                  exercise_name: st.exercise_name,
+                  set_number: st.set_number,
+                  weight_kg: st.weight_kg,
+                  reps: st.reps,
+                  completed: st.completed,
+                  notes: st.notes,
+                }))
+                .sort((a: any, b: any) => a.set_number - b.set_number),
+            }));
+
+            setSessions(mappedSessions);
+            localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user!.id}`, JSON.stringify(mappedSessions));
+            const inProg = mappedSessions.find((s) => s.status === 'in_progress');
+            if (inProg) {
+              setActiveSession(inProg);
+            }
+          }
+
           setSyncStatus('synced');
         } catch (syncErr) {
           console.warn('Smart plan remote fetch error, using local data:', syncErr);
@@ -293,9 +347,33 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user.id}`, JSON.stringify(updated));
       }
 
+      // Persist session to Supabase
+      if (configured && supabase && isUUID(user?.id)) {
+        try {
+          const { data: dbSess } = await supabase
+            .from('workout_sessions')
+            .insert({
+              user_id: user!.id,
+              planned_workout_id: isUUID(plannedWorkout.id) ? plannedWorkout.id : null,
+              session_date: today,
+              title: plannedWorkout.title,
+              status: 'in_progress',
+              duration_minutes: 0,
+            })
+            .select()
+            .single();
+
+          if (dbSess) {
+            newSession.id = dbSess.id;
+          }
+        } catch (e) {
+          console.warn('Could not sync session to Supabase:', e);
+        }
+      }
+
       return newSession;
     },
-    [user, sessions]
+    [user, sessions, configured]
   );
 
   // Log set in active session
@@ -349,9 +427,26 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user.id}`, JSON.stringify(updated));
       }
 
+      // Update session in Supabase
+      if (configured && supabase && isUUID(user?.id) && isUUID(sessionId)) {
+        try {
+          await supabase
+            .from('workout_sessions')
+            .update({
+              status: 'completed',
+              duration_minutes: durationMinutes,
+              completed_at: now,
+              notes: notes || undefined,
+            })
+            .eq('id', sessionId);
+        } catch (e) {
+          console.warn('Could not update completed session in Supabase:', e);
+        }
+      }
+
       return true;
     },
-    [user, sessions]
+    [user, sessions, configured]
   );
 
   // Missed or Rescheduled session
@@ -394,9 +489,34 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       setActivityLogs(updated);
       localStorage.setItem(`${STORAGE_KEY_ACTIVITIES}_${user.id}`, JSON.stringify(updated));
 
+      // Persist outdoor activity to Supabase
+      if (configured && supabase && isUUID(user.id)) {
+        try {
+          const { data: dbAct } = await supabase
+            .from('activity_logs')
+            .insert({
+              user_id: user.id,
+              group_id: isUUID(log.group_id) ? log.group_id : null,
+              activity_date: log.activity_date,
+              activity_type: log.activity_type,
+              duration_minutes: log.duration_minutes,
+              distance_km: log.distance_km || null,
+              notes: log.notes || null,
+            })
+            .select()
+            .single();
+
+          if (dbAct) {
+            newLog.id = dbAct.id;
+          }
+        } catch (e) {
+          console.warn('Could not sync outdoor activity to Supabase:', e);
+        }
+      }
+
       return true;
     },
-    [user, activityLogs]
+    [user, activityLogs, configured]
   );
 
   return (

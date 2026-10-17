@@ -138,21 +138,24 @@ export const Header: React.FC<HeaderProps> = ({
             <span>Set Today</span>
           </button>
 
-          {/* User Profile Avatar */}
+          {/* User Profile & Account Menu Trigger */}
           {user && (
             <button
+              type="button"
               onClick={onOpenProfileModal}
-              className="flex items-center gap-2 p-1 pl-1.5 rounded-xl hover:bg-[#141620] border border-transparent hover:border-[#222736] transition-all"
-              title="Edit Profile"
+              className="flex items-center gap-1.5 sm:gap-2 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-[#141620] hover:bg-[#1a1e2b] border border-[#222736] hover:border-[#ccff00]/40 transition-all cursor-pointer min-h-[40px] shrink-0"
+              title="Account Settings & Log Out"
+              aria-label="Account Settings and Log Out"
             >
               <Avatar
                 src={user.avatar_url}
                 name={user.display_name || user.username}
                 size="sm"
               />
-              <span className="hidden sm:block text-xs font-semibold text-slate-300 max-w-[100px] truncate">
+              <span className="hidden sm:block text-xs font-semibold text-slate-200 max-w-[100px] truncate">
                 @{user.username || 'user'}
               </span>
+              <ChevronDown size={13} className="text-slate-400" />
             </button>
           )}
         </div>

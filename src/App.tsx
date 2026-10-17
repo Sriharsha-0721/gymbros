@@ -295,6 +295,7 @@ const MainAppContent: React.FC = () => {
               onOpenJoinGroup={() => setIsJoinGroupOpen(true)}
               onOpenInviteModal={() => setIsInviteOpen(true)}
               onLeaveGroup={leaveGroup}
+              onOpenProfileModal={() => setIsProfileOpen(true)}
             />
           </div>
         )}
