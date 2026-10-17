@@ -49,12 +49,12 @@ export const MobileNav: React.FC<MobileNavProps> = ({
             <button
               key={tab.id}
               onClick={() => setCurrentTab(tab.id)}
-              className={`flex flex-col items-center py-1.5 px-3 rounded-xl transition-all ${
+              className={`flex flex-col items-center justify-center py-1.5 px-1.5 sm:px-3 rounded-xl min-w-[44px] min-h-[44px] transition-all ${
                 isActive ? 'text-[#ccff00]' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
-              <span className={`text-[10px] mt-1 font-semibold ${isActive ? 'text-[#ccff00]' : 'text-slate-400'}`}>
+              <Icon size={19} strokeWidth={isActive ? 2.5 : 2} />
+              <span className={`text-[10px] mt-0.5 font-semibold leading-tight ${isActive ? 'text-[#ccff00]' : 'text-slate-400'}`}>
                 {tab.label}
               </span>
             </button>

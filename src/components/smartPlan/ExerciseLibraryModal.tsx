@@ -53,19 +53,19 @@ export const ExerciseLibraryModal: React.FC<ExerciseLibraryModalProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-        <div className="w-full max-w-3xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+        <div className="w-full max-w-3xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88dvh] overflow-hidden my-auto">
           {/* Header */}
-          <div className="px-5 py-4 border-b border-[#1b1f2b] flex items-center justify-between bg-[#131620]">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-[#ccff00]/10 border border-[#ccff00]/30 flex items-center justify-center text-[#ccff00]">
+          <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#1b1f2b] flex items-center justify-between bg-[#131620] shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+              <div className="w-8 h-8 rounded-lg bg-[#ccff00]/10 border border-[#ccff00]/30 flex items-center justify-center text-[#ccff00] shrink-0">
                 <Dumbbell size={16} />
               </div>
-              <div>
-                <h2 className="text-base font-extrabold text-white font-heading">
+              <div className="min-w-0">
+                <h2 className="text-base font-extrabold text-white font-heading truncate">
                   {isSubstitutionMode ? 'Select Exercise Alternative' : 'Interactive Exercise Library'}
                 </h2>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-400 truncate">
                   {isSubstitutionMode 
                     ? `Replacing "${replacingExerciseName}" in your plan` 
                     : '100% offline, illustrated biomechanics & execution guides'}
@@ -74,23 +74,24 @@ export const ExerciseLibraryModal: React.FC<ExerciseLibraryModalProps> = ({
             </div>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors text-xs font-bold"
+              className="w-10 h-10 min-w-[40px] rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+              aria-label="Close library"
             >
-              ✕
+              <X size={18} />
             </button>
           </div>
 
           {/* Search & Filter Toolbar */}
-          <div className="p-4 border-b border-[#1b1f2b] bg-[#11131c] space-y-3">
+          <div className="p-3 sm:p-4 border-b border-[#1b1f2b] bg-[#11131c] space-y-2.5 sm:space-y-3 shrink-0">
             {/* Search Input */}
             <div className="relative">
               <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search exercise, muscle (chest, quads, lats) or equipment..."
+                placeholder="Search exercise, muscle (chest, quads, lats)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[#161925] border border-[#23293b] rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#ccff00]"
+                className="w-full bg-[#161925] border border-[#23293b] rounded-xl pl-10 pr-4 py-2.5 text-base sm:text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#ccff00]"
               />
               {searchQuery && (
                 <button
@@ -121,7 +122,7 @@ export const ExerciseLibraryModal: React.FC<ExerciseLibraryModalProps> = ({
           </div>
 
           {/* Exercise Grid */}
-          <div className="p-4 sm:p-5 overflow-y-auto flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="p-3 sm:p-5 overflow-y-auto flex-1 min-h-0 grid grid-cols-1 sm:grid-cols-2 gap-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
             {filteredExercises.length === 0 ? (
               <div className="col-span-full py-12 text-center text-slate-400 text-xs">
                 No exercises matched your search criteria. Try a different muscle or keyword.

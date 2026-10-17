@@ -3,6 +3,7 @@ import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Dumbbell, Clock, Flame, Sparkles } from 'lucide-react';
 import { getTodayKey, formatFriendlyDate } from '../../lib/dateUtils';
+import { sanitizeNumericInput } from '../../lib/numberUtils';
 import confetti from 'canvas-confetti';
 
 interface WorkoutCheckInModalProps {
@@ -124,8 +125,8 @@ export const WorkoutCheckInModal: React.FC<WorkoutCheckInModalProps> = ({
               min="5"
               max="300"
               value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="w-full px-3.5 py-2.5 rounded-xl bg-[#161a25] border border-[#262c3e] text-white text-sm focus:outline-none focus:border-[#ccff00]"
+              onChange={(e) => setDuration(sanitizeNumericInput(e.target.value))}
+              className="w-full px-3.5 py-2.5 rounded-xl bg-[#161a25] border border-[#262c3e] text-white text-base sm:text-sm focus:outline-none focus:border-[#ccff00]"
             />
           </div>
 

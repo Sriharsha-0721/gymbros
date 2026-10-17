@@ -23,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { activeGroup, groups } = useGroup();
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#090a0f]/90 backdrop-blur-xl border-b border-[#1b1f2b]">
+    <header className="sticky top-0 z-40 w-full bg-[#090a0f]/95 backdrop-blur-xl border-b border-[#1b1f2b] pt-[env(safe-area-inset-top,0px)]">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         {/* Brand & Emblem */}
         <div className="flex items-center gap-3">

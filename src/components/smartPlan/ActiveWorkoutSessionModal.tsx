@@ -18,6 +18,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { sanitizeNumericInput } from '../../lib/numberUtils';
 
 interface ActiveWorkoutSessionModalProps {
   workout: PlannedWorkout;
@@ -216,8 +217,8 @@ export const ActiveWorkoutSessionModal: React.FC<ActiveWorkoutSessionModalProps>
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/90 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[94vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/90 backdrop-blur-md overflow-y-auto overscroll-contain animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[94dvh] sm:max-h-[90dvh] my-auto overflow-hidden">
         {/* Workout Complete Summary Screen */}
         {isFinishedSummaryOpen ? (
           <div className="p-6 sm:p-8 space-y-6 text-center animate-in zoom-in-95 duration-200 overflow-y-auto">
@@ -402,10 +403,15 @@ export const ActiveWorkoutSessionModal: React.FC<ActiveWorkoutSessionModalProps>
                             step="0.5"
                             value={set.weightKg || ''}
                             onChange={(e) =>
-                              handleUpdateSet(currentExercise.id, sIdx, 'weightKg', Number(e.target.value))
+                              handleUpdateSet(
+                                currentExercise.id,
+                                sIdx,
+                                'weightKg',
+                                Number(sanitizeNumericInput(e.target.value))
+                              )
                             }
                             placeholder="0"
-                            className="w-full bg-[#161a26] border border-[#252b3d] rounded-md px-2 py-1 text-xs text-white font-mono font-bold text-center focus:border-[#ccff00] focus:outline-none"
+                            className="w-full bg-[#161a26] border border-[#252b3d] rounded-md px-2 py-1 text-sm sm:text-xs text-white font-mono font-bold text-center focus:border-[#ccff00] focus:outline-none"
                           />
                         </div>
 
@@ -415,10 +421,15 @@ export const ActiveWorkoutSessionModal: React.FC<ActiveWorkoutSessionModalProps>
                             type="number"
                             value={set.reps || ''}
                             onChange={(e) =>
-                              handleUpdateSet(currentExercise.id, sIdx, 'reps', Number(e.target.value))
+                              handleUpdateSet(
+                                currentExercise.id,
+                                sIdx,
+                                'reps',
+                                Number(sanitizeNumericInput(e.target.value))
+                              )
                             }
                             placeholder="10"
-                            className="w-full bg-[#161a26] border border-[#252b3d] rounded-md px-2 py-1 text-xs text-white font-mono font-bold text-center focus:border-[#ccff00] focus:outline-none"
+                            className="w-full bg-[#161a26] border border-[#252b3d] rounded-md px-2 py-1 text-sm sm:text-xs text-white font-mono font-bold text-center focus:border-[#ccff00] focus:outline-none"
                           />
                         </div>
 

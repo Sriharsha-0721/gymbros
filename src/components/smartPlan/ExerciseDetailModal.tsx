@@ -31,12 +31,12 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
   if (!isOpen || !exercise) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[88dvh] overflow-hidden my-auto">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-[#1b1f2b] flex items-center justify-between bg-[#131620]">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#1b1f2b] flex items-center justify-between bg-[#131620] shrink-0">
+          <div className="min-w-0 pr-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <span className="text-[10px] uppercase font-bold text-[#ccff00] bg-[#ccff00]/10 px-2 py-0.5 rounded-full border border-[#ccff00]/30">
                 {exercise.category}
               </span>
@@ -47,20 +47,21 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
                 {exercise.difficulty}
               </span>
             </div>
-            <h2 className="text-lg font-black text-white font-heading mt-1">
+            <h2 className="text-base sm:text-lg font-black text-white font-heading mt-1 truncate">
               {exercise.name}
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors text-xs font-bold"
+            className="w-10 h-10 min-w-[40px] rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition-colors shrink-0"
+            aria-label="Close details"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 text-sm text-slate-300">
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0 space-y-4 sm:space-y-5 text-sm text-slate-300">
           {/* Vector Biomechanics Illustration */}
           <ExerciseIllustration
             svgType={exercise.svgType}
@@ -180,10 +181,10 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-[#1b1f2b] flex items-center justify-between bg-[#131620]">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 border-t border-[#1b1f2b] flex items-center justify-between bg-[#131620] shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-[#1a1e2b] text-slate-300 hover:text-white font-bold text-xs transition-colors"
+            className="px-4 py-2 min-h-[44px] rounded-xl bg-[#1a1e2b] text-slate-300 hover:text-white font-bold text-xs transition-colors flex items-center justify-center"
           >
             Close Guide
           </button>
@@ -191,7 +192,7 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
           {allowSubstitution && onSubstitute && (
             <button
               onClick={() => onSubstitute(exercise)}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ccff00] text-black hover:bg-[#d8ff33] font-black text-xs shadow-md shadow-[#ccff00]/15 transition-all"
+              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl bg-[#ccff00] text-black hover:bg-[#d8ff33] font-black text-xs shadow-md shadow-[#ccff00]/15 transition-all"
             >
               <Repeat size={14} />
               <span>Substitute Into Plan</span>

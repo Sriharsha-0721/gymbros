@@ -26,6 +26,7 @@ import {
   AlertTriangle,
   Scale
 } from 'lucide-react';
+import { sanitizeNumericInput } from '../../lib/numberUtils';
 
 interface FitnessOnboardingModalProps {
   isOpen: boolean;
@@ -132,7 +133,8 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
   };
 
   const handleFeetChange = (valStr: string) => {
-    const digits = valStr.replace(/\D/g, '');
+    const sanitized = sanitizeNumericInput(valStr);
+    const digits = sanitized.replace(/\D/g, '');
     if (!digits) {
       setHeightFeet(0);
       return;
@@ -142,7 +144,8 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
   };
 
   const handleInchesChange = (valStr: string) => {
-    const digits = valStr.replace(/\D/g, '');
+    const sanitized = sanitizeNumericInput(valStr);
+    const digits = sanitized.replace(/\D/g, '');
     if (!digits) {
       setHeightInches(0);
       return;
@@ -260,8 +263,8 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[92vh] overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl bg-[#0f1118] border border-[#232838] rounded-2xl shadow-2xl flex flex-col max-h-[92dvh] sm:max-h-[90dvh] overflow-hidden my-auto">
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#1b1f2b] flex items-center justify-between bg-[#131620]">
           <div className="flex items-center gap-2.5">
@@ -494,7 +497,7 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
                     max="90"
                     placeholder="e.g. 26"
                     value={age || ''}
-                    onChange={(e) => setAge(e.target.value ? Number(e.target.value) : undefined)}
+                    onChange={(e) => setAge(e.target.value ? Number(sanitizeNumericInput(e.target.value)) : undefined)}
                     className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold"
                   />
                 </div>
@@ -1139,7 +1142,7 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
                     step="0.5"
                     placeholder="e.g. 78"
                     value={targetWeightKg || ''}
-                    onChange={(e) => setTargetWeightKg(e.target.value ? Number(e.target.value) : undefined)}
+                    onChange={(e) => setTargetWeightKg(e.target.value ? Number(sanitizeNumericInput(e.target.value)) : undefined)}
                     className="w-full bg-[#0b0c12] border border-[#1e2333] rounded-lg px-3 py-2 text-white font-bold"
                   />
                   <p className="text-[11px] text-slate-500">
@@ -1175,12 +1178,12 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
         </div>
 
         {/* Footer Navigation */}
-        <div className="px-5 py-4 border-t border-[#1b1f2b] flex items-center justify-between bg-[#131620]">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-t border-[#1b1f2b] flex items-center justify-between bg-[#131620] shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {currentStep > 1 ? (
             <button
               type="button"
               onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1a1e2b] text-slate-300 hover:text-white font-bold text-xs transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 min-h-[44px] rounded-xl bg-[#1a1e2b] text-slate-300 hover:text-white font-bold text-xs transition-colors"
             >
               <ChevronLeft size={16} />
               <span>Back</span>
@@ -1193,7 +1196,7 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
             <button
               type="button"
               onClick={() => setCurrentStep((prev) => Math.min(8, prev + 1))}
-              className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#ccff00] text-[#090a0f] hover:bg-[#d8ff33] font-black text-xs shadow-md shadow-[#ccff00]/15 transition-all"
+              className="flex items-center gap-1.5 px-5 py-2.5 min-h-[44px] rounded-xl bg-[#ccff00] text-[#090a0f] hover:bg-[#d8ff33] font-black text-xs shadow-md shadow-[#ccff00]/15 transition-all"
             >
               <span>Next Step</span>
               <ChevronRight size={16} />
@@ -1203,7 +1206,7 @@ export const FitnessOnboardingModal: React.FC<FitnessOnboardingModalProps> = ({
               type="button"
               disabled={isSubmitting}
               onClick={handleComplete}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#ccff00] text-[#090a0f] hover:bg-[#d8ff33] font-black text-xs shadow-lg shadow-[#ccff00]/25 transition-all disabled:opacity-50"
+              className="flex items-center gap-2 px-6 py-2.5 min-h-[44px] rounded-xl bg-[#ccff00] text-[#090a0f] hover:bg-[#d8ff33] font-black text-xs shadow-lg shadow-[#ccff00]/25 transition-all disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span>Saving Profile...</span>

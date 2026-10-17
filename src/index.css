@@ -26,8 +26,17 @@
     background-color: var(--bg-dark);
     color: #f1f5f9;
     min-height: 100vh;
+    min-height: 100dvh;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Prevent iOS Safari 150% auto-zoom on input focus */
+  @media screen and (max-width: 767px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
   }
 
   h1, h2, h3, h4, .font-heading {
