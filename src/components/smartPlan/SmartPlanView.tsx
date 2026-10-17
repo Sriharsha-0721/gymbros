@@ -47,6 +47,7 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
     regeneratePlan,
     startWorkoutSession,
     completeWorkoutSession,
+    refreshData,
     syncStatus 
   } = useSmartPlan();
 
@@ -57,6 +58,7 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [isLogActivityOpen, setIsLogActivityOpen] = useState(false);
+  const [isRefreshingActivities, setIsRefreshingActivities] = useState(false);
   const [selectedExerciseForGuide, setSelectedExerciseForGuide] = useState<ExerciseDetail | null>(null);
   const [substitutingExercise, setSubstitutingExercise] = useState<{ workoutId: string; exerciseId: string; name: string } | null>(null);
   const [liveSessionWorkout, setLiveSessionWorkout] = useState<PlannedWorkout | null>(null);
@@ -552,13 +554,29 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setIsLogActivityOpen(true)}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-black text-xs shadow-lg shadow-cyan-400/20 active:scale-95 transition-all self-start sm:self-auto"
-                >
-                  <Plus size={15} />
-                  <span>Log Activity Day</span>
-                </button>
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <button
+                    onClick={async () => {
+                      setIsRefreshingActivities(true);
+                      await refreshData();
+                      setTimeout(() => setIsRefreshingActivities(false), 500);
+                    }}
+                    disabled={isRefreshingActivities}
+                    className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#161a26] hover:bg-[#1f2536] border border-[#252c40] text-xs font-bold text-slate-300 active:scale-95 transition-all"
+                    title="Sync and refresh activities from Supabase cloud"
+                  >
+                    <RefreshCw size={13} className={isRefreshingActivities ? 'animate-spin text-cyan-400' : 'text-slate-400'} />
+                    <span>{isRefreshingActivities ? 'Syncing...' : 'Sync Cloud'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setIsLogActivityOpen(true)}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-black font-black text-xs shadow-lg shadow-cyan-400/20 active:scale-95 transition-all"
+                  >
+                    <Plus size={15} />
+                    <span>Log Activity Day</span>
+                  </button>
+                </div>
               </div>
 
               {/* Past Activity Logs List */}

@@ -26,6 +26,7 @@ interface SmartPlanContextType {
   completeWorkoutSession: (sessionId: string, durationMinutes: number, notes?: string) => Promise<boolean>;
   recordMissedOrRescheduledSession: (sessionId: string, status: 'missed' | 'rescheduled', rescheduledTo?: string) => Promise<boolean>;
   logOutdoorActivity: (log: Omit<OutdoorActivityLog, 'id' | 'user_id' | 'completed_at'>) => Promise<boolean>;
+  refreshData: () => Promise<void>;
   syncStatus: 'synced' | 'local_only' | 'syncing';
 }
 
@@ -53,171 +54,274 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [loading, setLoading] = useState<boolean>(true);
   const [syncStatus, setSyncStatus] = useState<'synced' | 'local_only' | 'syncing'>('local_only');
 
-  // Load initial data
-  useEffect(() => {
+  // Load and synchronize data from both local cache and Supabase cloud
+  const initSmartPlanData = useCallback(async (isBackground = false) => {
     if (!user) {
       setLoading(false);
       return;
     }
 
-    async function initSmartPlanData() {
-      setLoading(true);
+    if (!isBackground) setLoading(true);
 
-      // 1. Try loading cached local data
-      let cachedProfile: FitnessProfile | null = null;
-      let cachedPlan: WorkoutPlan | null = null;
-      let cachedSessions: WorkoutSession[] = [];
-      let cachedActivities: OutdoorActivityLog[] = [];
+    // 1. Try loading cached local data (with legacy key fallback)
+    let cachedProfile: FitnessProfile | null = null;
+    let cachedPlan: WorkoutPlan | null = null;
+    let cachedSessions: WorkoutSession[] = [];
+    let cachedActivities: OutdoorActivityLog[] = [];
 
-      try {
-        const localProf = localStorage.getItem(`${STORAGE_KEY_PROFILE}_${user?.id}`);
-        if (localProf) cachedProfile = JSON.parse(localProf);
+    try {
+      const localProf = localStorage.getItem(`${STORAGE_KEY_PROFILE}_${user?.id}`);
+      if (localProf) cachedProfile = JSON.parse(localProf);
 
-        const localPlan = localStorage.getItem(`${STORAGE_KEY_PLAN}_${user?.id}`);
-        if (localPlan) cachedPlan = JSON.parse(localPlan);
+      const localPlan = localStorage.getItem(`${STORAGE_KEY_PLAN}_${user?.id}`);
+      if (localPlan) cachedPlan = JSON.parse(localPlan);
 
-        const localSess = localStorage.getItem(`${STORAGE_KEY_SESSIONS}_${user?.id}`);
-        if (localSess) cachedSessions = JSON.parse(localSess);
+      const localSess = localStorage.getItem(`${STORAGE_KEY_SESSIONS}_${user?.id}`);
+      if (localSess) cachedSessions = JSON.parse(localSess);
 
-        const localAct = localStorage.getItem(`${STORAGE_KEY_ACTIVITIES}_${user?.id}`);
-        if (localAct) cachedActivities = JSON.parse(localAct);
-      } catch (err) {
-        console.warn('Error reading smart plan local storage:', err);
-      }
-
-      setProfile(cachedProfile);
-      setActivePlan(cachedPlan);
-      setSessions(cachedSessions);
-      setActivityLogs(cachedActivities);
-
-      // Check for any session currently in_progress
-      const currentInProgress = cachedSessions.find((s) => s.status === 'in_progress');
-      if (currentInProgress) {
-        setActiveSession(currentInProgress);
-      }
-
-      // 2. If Supabase is connected and user is live UUID, sync from DB
-      if (configured && supabase && isUUID(user?.id)) {
-        try {
-          setSyncStatus('syncing');
-
-          // Fetch profile
-          const { data: dbProfile, error: profErr } = await supabase
-            .from('fitness_profiles')
-            .select('*')
-            .eq('user_id', user!.id)
-            .maybeSingle();
-
-          if (!profErr && dbProfile) {
-            setProfile(dbProfile);
-            localStorage.setItem(`${STORAGE_KEY_PROFILE}_${user!.id}`, JSON.stringify(dbProfile));
-          }
-
-          // Fetch active workout plan
-          const { data: dbPlan, error: planErr } = await supabase
-            .from('workout_plans')
-            .select('*, planned_workouts(*, planned_exercises(*))')
-            .eq('user_id', user!.id)
-            .eq('is_active', true)
-            .maybeSingle();
-
-          if (!planErr && dbPlan) {
-            // Map structured response
-            const mappedPlan: WorkoutPlan = {
-              id: dbPlan.id,
-              user_id: dbPlan.user_id,
-              name: dbPlan.name,
-              split_type: dbPlan.split_type,
-              is_active: dbPlan.is_active,
-              summary: dbPlan.summary || '',
-              progression_notes: dbPlan.progression_notes,
-              created_at: dbPlan.created_at,
-              updated_at: dbPlan.updated_at,
-              workouts: (dbPlan.planned_workouts || []).map((w: any) => ({
-                id: w.id,
-                plan_id: w.plan_id,
-                day_index: w.day_index,
-                day_name: w.day_name,
-                title: w.title,
-                focus: w.focus,
-                suggested_duration_min: w.suggested_duration_min,
-                warmup_notes: w.warmup_notes,
-                cardio_notes: w.cardio_notes,
-                is_rest_day: w.is_rest_day,
-                exercises: (w.planned_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index),
-              })).sort((a: any, b: any) => a.day_index - b.day_index),
-            };
-
-            setActivePlan(mappedPlan);
-            localStorage.setItem(`${STORAGE_KEY_PLAN}_${user!.id}`, JSON.stringify(mappedPlan));
-          }
-
-          // Fetch logged outdoor activities from Supabase
-          const { data: dbActivities, error: actErr } = await supabase
-            .from('activity_logs')
-            .select('*')
-            .eq('user_id', user!.id)
-            .order('activity_date', { ascending: false });
-
-          if (!actErr && dbActivities && dbActivities.length > 0) {
-            setActivityLogs(dbActivities);
-            localStorage.setItem(`${STORAGE_KEY_ACTIVITIES}_${user!.id}`, JSON.stringify(dbActivities));
-          }
-
-          // Fetch past workout sessions from Supabase
-          const { data: dbSessions, error: sessErr } = await supabase
-            .from('workout_sessions')
-            .select('*, exercise_set_logs(*)')
-            .eq('user_id', user!.id)
-            .order('session_date', { ascending: false });
-
-          if (!sessErr && dbSessions && dbSessions.length > 0) {
-            const mappedSessions: WorkoutSession[] = dbSessions.map((s: any) => ({
-              id: s.id,
-              user_id: s.user_id,
-              planned_workout_id: s.planned_workout_id,
-              session_date: s.session_date,
-              title: s.title,
-              status: s.status,
-              duration_minutes: s.duration_minutes || 0,
-              started_at: s.started_at,
-              completed_at: s.completed_at,
-              notes: s.notes || '',
-              rescheduled_to: s.rescheduled_to,
-              sets: (s.exercise_set_logs || [])
-                .map((st: any) => ({
-                  id: st.id,
-                  session_id: st.session_id,
-                  exercise_name: st.exercise_name,
-                  set_number: st.set_number,
-                  weight_kg: st.weight_kg,
-                  reps: st.reps,
-                  completed: st.completed,
-                  notes: st.notes,
-                }))
-                .sort((a: any, b: any) => a.set_number - b.set_number),
-            }));
-
-            setSessions(mappedSessions);
-            localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user!.id}`, JSON.stringify(mappedSessions));
-            const inProg = mappedSessions.find((s) => s.status === 'in_progress');
-            if (inProg) {
-              setActiveSession(inProg);
-            }
-          }
-
-          setSyncStatus('synced');
-        } catch (syncErr) {
-          console.warn('Smart plan remote fetch error, using local data:', syncErr);
-          setSyncStatus('local_only');
-        }
-      }
-
-      setLoading(false);
+      // Support user-specific key and legacy shared key
+      const localAct =
+        localStorage.getItem(`${STORAGE_KEY_ACTIVITIES}_${user?.id}`) ||
+        localStorage.getItem(STORAGE_KEY_ACTIVITIES);
+      if (localAct) cachedActivities = JSON.parse(localAct);
+    } catch (err) {
+      console.warn('Error reading smart plan local storage:', err);
     }
 
-    initSmartPlanData();
+    if (cachedProfile) setProfile(cachedProfile);
+    if (cachedPlan) setActivePlan(cachedPlan);
+    if (cachedSessions.length > 0) setSessions(cachedSessions);
+    if (cachedActivities.length > 0) setActivityLogs(cachedActivities);
+
+    // Check for any session currently in_progress
+    const currentInProgress = cachedSessions.find((s) => s.status === 'in_progress');
+    if (currentInProgress) {
+      setActiveSession(currentInProgress);
+    }
+
+    // 2. If Supabase is connected and user is live UUID, sync from DB
+    if (configured && supabase && isUUID(user?.id)) {
+      try {
+        setSyncStatus('syncing');
+
+        // Fetch profile
+        const { data: dbProfile, error: profErr } = await supabase
+          .from('fitness_profiles')
+          .select('*')
+          .eq('user_id', user!.id)
+          .maybeSingle();
+
+        if (!profErr && dbProfile) {
+          setProfile(dbProfile);
+          localStorage.setItem(`${STORAGE_KEY_PROFILE}_${user!.id}`, JSON.stringify(dbProfile));
+        }
+
+        // Fetch active workout plan
+        const { data: dbPlan, error: planErr } = await supabase
+          .from('workout_plans')
+          .select('*, planned_workouts(*, planned_exercises(*))')
+          .eq('user_id', user!.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (!planErr && dbPlan) {
+          const mappedPlan: WorkoutPlan = {
+            id: dbPlan.id,
+            user_id: dbPlan.user_id,
+            name: dbPlan.name,
+            split_type: dbPlan.split_type,
+            is_active: dbPlan.is_active,
+            summary: dbPlan.summary || '',
+            progression_notes: dbPlan.progression_notes,
+            created_at: dbPlan.created_at,
+            updated_at: dbPlan.updated_at,
+            workouts: (dbPlan.planned_workouts || []).map((w: any) => ({
+              id: w.id,
+              plan_id: w.plan_id,
+              day_index: w.day_index,
+              day_name: w.day_name,
+              title: w.title,
+              focus: w.focus,
+              suggested_duration_min: w.suggested_duration_min,
+              warmup_notes: w.warmup_notes,
+              cardio_notes: w.cardio_notes,
+              is_rest_day: w.is_rest_day,
+              exercises: (w.planned_exercises || []).sort((a: any, b: any) => a.order_index - b.order_index),
+            })).sort((a: any, b: any) => a.day_index - b.day_index),
+          };
+
+          setActivePlan(mappedPlan);
+          localStorage.setItem(`${STORAGE_KEY_PLAN}_${user!.id}`, JSON.stringify(mappedPlan));
+        }
+
+        // Fetch logged outdoor activities from Supabase
+        const { data: dbActivities, error: actErr } = await supabase
+          .from('activity_logs')
+          .select('*')
+          .eq('user_id', user!.id)
+          .order('activity_date', { ascending: false });
+
+        let mergedActivities: OutdoorActivityLog[] = dbActivities ? [...dbActivities] : [];
+
+        // Backfill / sync any local cached activities that aren't yet in Supabase
+        for (const localAct of cachedActivities) {
+          const alreadyInDb = mergedActivities.some(
+            (da) =>
+              da.id === localAct.id ||
+              (da.activity_date === localAct.activity_date &&
+                da.activity_type === localAct.activity_type &&
+                da.duration_minutes === localAct.duration_minutes)
+          );
+
+          if (!alreadyInDb) {
+            try {
+              let insertPayload: any = {
+                user_id: user!.id,
+                group_id: isUUID(localAct.group_id) ? localAct.group_id : null,
+                activity_date: localAct.activity_date,
+                activity_type: localAct.activity_type,
+                duration_minutes: localAct.duration_minutes,
+                distance_km: localAct.distance_km || null,
+                notes: localAct.notes || null,
+              };
+
+              let { data: syncedRow, error: syncInsErr } = await supabase
+                .from('activity_logs')
+                .insert(insertPayload)
+                .select()
+                .single();
+
+              if (syncInsErr && insertPayload.group_id) {
+                insertPayload.group_id = null;
+                const retry = await supabase.from('activity_logs').insert(insertPayload).select().single();
+                syncedRow = retry.data;
+              }
+
+              if (syncedRow) {
+                mergedActivities.unshift(syncedRow);
+              } else {
+                mergedActivities.unshift(localAct);
+              }
+            } catch (err) {
+              console.warn('Auto-sync local activity to Supabase error:', err);
+              mergedActivities.unshift(localAct);
+            }
+          }
+        }
+
+        // Sort descending by activity date
+        mergedActivities.sort((a, b) => (b.activity_date > a.activity_date ? 1 : -1));
+        setActivityLogs(mergedActivities);
+        localStorage.setItem(`${STORAGE_KEY_ACTIVITIES}_${user!.id}`, JSON.stringify(mergedActivities));
+        localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(mergedActivities));
+
+        // Fetch past workout sessions from Supabase
+        const { data: dbSessions, error: sessErr } = await supabase
+          .from('workout_sessions')
+          .select('*, exercise_set_logs(*)')
+          .eq('user_id', user!.id)
+          .order('session_date', { ascending: false });
+
+        if (!sessErr && dbSessions) {
+          const mappedSessions: WorkoutSession[] = dbSessions.map((s: any) => ({
+            id: s.id,
+            user_id: s.user_id,
+            planned_workout_id: s.planned_workout_id,
+            session_date: s.session_date,
+            title: s.title,
+            status: s.status,
+            duration_minutes: s.duration_minutes || 0,
+            started_at: s.started_at,
+            completed_at: s.completed_at,
+            notes: s.notes || '',
+            rescheduled_to: s.rescheduled_to,
+            sets: (s.exercise_set_logs || [])
+              .map((st: any) => ({
+                id: st.id,
+                session_id: st.session_id,
+                exercise_name: st.exercise_name,
+                set_number: st.set_number,
+                weight_kg: st.weight_kg,
+                reps: st.reps,
+                completed: st.completed,
+                notes: st.notes,
+              }))
+              .sort((a: any, b: any) => a.set_number - b.set_number),
+          }));
+
+          setSessions(mappedSessions);
+          localStorage.setItem(`${STORAGE_KEY_SESSIONS}_${user!.id}`, JSON.stringify(mappedSessions));
+          const inProg = mappedSessions.find((s) => s.status === 'in_progress');
+          if (inProg) {
+            setActiveSession(inProg);
+          }
+        }
+
+        setSyncStatus('synced');
+      } catch (syncErr) {
+        console.warn('Smart plan remote fetch error, using local data:', syncErr);
+        setSyncStatus('local_only');
+      }
+    }
+
+    setLoading(false);
   }, [user, configured]);
+
+  useEffect(() => {
+    initSmartPlanData();
+  }, [initSmartPlanData]);
+
+  // Set up Supabase Realtime subscription & Visibility/Focus listeners
+  useEffect(() => {
+    if (!configured || !supabase || !user || !isUUID(user.id)) return;
+
+    // Realtime channel for instant cross-device updates
+    const channel = supabase
+      .channel(`realtime:activity_logs:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'activity_logs',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          initSmartPlanData(true);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'workout_sessions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          initSmartPlanData(true);
+        }
+      )
+      .subscribe();
+
+    // Re-sync whenever user returns to the mobile app or browser tab
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        initSmartPlanData(true);
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+
+    return () => {
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, [configured, user, initSmartPlanData]);
 
   // Save profile and generate new plan
   const saveProfileAndGeneratePlan = useCallback(
@@ -492,19 +596,27 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       // Persist outdoor activity to Supabase
       if (configured && supabase && isUUID(user.id)) {
         try {
-          const { data: dbAct } = await supabase
+          let insertPayload: any = {
+            user_id: user.id,
+            group_id: isUUID(log.group_id) ? log.group_id : null,
+            activity_date: log.activity_date,
+            activity_type: log.activity_type,
+            duration_minutes: log.duration_minutes,
+            distance_km: log.distance_km || null,
+            notes: log.notes || null,
+          };
+
+          let { data: dbAct, error: actErr } = await supabase
             .from('activity_logs')
-            .insert({
-              user_id: user.id,
-              group_id: isUUID(log.group_id) ? log.group_id : null,
-              activity_date: log.activity_date,
-              activity_type: log.activity_type,
-              duration_minutes: log.duration_minutes,
-              distance_km: log.distance_km || null,
-              notes: log.notes || null,
-            })
+            .insert(insertPayload)
             .select()
             .single();
+
+          if (actErr && insertPayload.group_id) {
+            insertPayload.group_id = null;
+            const retry = await supabase.from('activity_logs').insert(insertPayload).select().single();
+            dbAct = retry.data;
+          }
 
           if (dbAct) {
             newLog.id = dbAct.id;
@@ -514,6 +626,7 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
       }
 
+      localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(updated));
       return true;
     },
     [user, activityLogs, configured]
@@ -536,6 +649,7 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         completeWorkoutSession,
         recordMissedOrRescheduledSession,
         logOutdoorActivity,
+        refreshData: () => initSmartPlanData(false),
         syncStatus,
       }}
     >

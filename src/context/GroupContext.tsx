@@ -335,16 +335,50 @@ export const GroupProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setAvailabilities(loadedAvailabilities);
           localStorage.setItem(STORAGE_KEY_AVAILABILITIES, JSON.stringify(loadedAvailabilities));
 
-          // Fetch user workout logs
+          // Fetch user workout logs from Supabase
           const { data: logsData } = await supabase
             .from('workout_logs')
             .select('*')
             .eq('user_id', user!.id)
             .order('date', { ascending: false });
 
-          if (logsData) {
-            setWorkoutLogs(logsData);
+          let mergedLogs: WorkoutLog[] = logsData ? [...logsData] : [];
+
+          // Merge and backfill any unsynced local workout logs
+          const storedLocalLogs = localStorage.getItem(STORAGE_KEY_WORKOUT_LOGS);
+          if (storedLocalLogs) {
+            try {
+              const parsedLocalLogs: WorkoutLog[] = JSON.parse(storedLocalLogs);
+              for (const locLog of parsedLocalLogs) {
+                const exists = mergedLogs.some(
+                  (dbL) => dbL.id === locLog.id || (dbL.date === locLog.date && dbL.workout_type === locLog.workout_type)
+                );
+                if (!exists) {
+                  mergedLogs.push(locLog);
+                  if (isUUID(user!.id)) {
+                    supabase
+                      .from('workout_logs')
+                      .insert({
+                        user_id: user!.id,
+                        group_id: isUUID(locLog.group_id) ? locLog.group_id : null,
+                        date: locLog.date,
+                        workout_type: locLog.workout_type,
+                        duration_minutes: locLog.duration_minutes || 60,
+                        notes: locLog.notes || null,
+                        intensity: locLog.intensity || 'moderate',
+                      })
+                      .then(() => {});
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Failed parsing local workout logs:', err);
+            }
           }
+
+          mergedLogs.sort((a, b) => (b.date > a.date ? 1 : -1));
+          setWorkoutLogs(mergedLogs);
+          localStorage.setItem(STORAGE_KEY_WORKOUT_LOGS, JSON.stringify(mergedLogs));
         } catch (err) {
           console.error('Error fetching Supabase group data:', err);
         } finally {
