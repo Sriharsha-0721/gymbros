@@ -21,6 +21,11 @@
     --status-undecided: #64748b;
   }
 
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
   body {
     font-family: var(--font-sans);
     background-color: var(--bg-dark);

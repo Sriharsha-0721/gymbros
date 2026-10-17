@@ -105,7 +105,7 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
       title={`Plan for ${formatFriendlyDate(activeDateKey)}`}
       description="Choose your workout window and coordinate with the squad."
     >
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} noValidate className="space-y-4">
         {/* Date Selector Row */}
         <div>
           <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
@@ -138,7 +138,6 @@ export const QuickAvailabilityModal: React.FC<QuickAvailabilityModalProps> = ({
             <input
               type="date"
               value={activeDateKey}
-              min={todayKey}
               onChange={(e) => e.target.value && setActiveDateKey(e.target.value)}
               className="flex-1 px-3 py-1.5 rounded-xl bg-[#161a25] border border-[#262c3e] text-white text-xs focus:outline-none focus:border-[#ccff00]"
             />
