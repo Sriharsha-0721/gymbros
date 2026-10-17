@@ -26,6 +26,7 @@ interface SmartPlanContextType {
   completeWorkoutSession: (sessionId: string, durationMinutes: number, notes?: string) => Promise<boolean>;
   recordMissedOrRescheduledSession: (sessionId: string, status: 'missed' | 'rescheduled', rescheduledTo?: string) => Promise<boolean>;
   logOutdoorActivity: (log: Omit<OutdoorActivityLog, 'id' | 'user_id' | 'completed_at'>) => Promise<boolean>;
+  deleteOutdoorActivity: (activityId: string) => Promise<boolean>;
   refreshData: () => Promise<void>;
   syncStatus: 'synced' | 'local_only' | 'syncing';
 }
@@ -632,6 +633,43 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     [user, activityLogs, configured]
   );
 
+  // Delete an outdoor activity log
+  const deleteOutdoorActivity = useCallback(
+    async (activityId: string): Promise<boolean> => {
+      const updated = activityLogs.filter((a) => a.id !== activityId);
+      setActivityLogs(updated);
+
+      if (user) {
+        localStorage.setItem(`${STORAGE_KEY_ACTIVITIES}_${user.id}`, JSON.stringify(updated));
+      }
+      localStorage.setItem(STORAGE_KEY_ACTIVITIES, JSON.stringify(updated));
+
+      if (configured && supabase && user && isUUID(user.id)) {
+        try {
+          if (isUUID(activityId)) {
+            await supabase.from('activity_logs').delete().eq('id', activityId).eq('user_id', user.id);
+          } else {
+            const target = activityLogs.find((a) => a.id === activityId);
+            if (target) {
+              await supabase
+                .from('activity_logs')
+                .delete()
+                .eq('user_id', user.id)
+                .eq('activity_date', target.activity_date)
+                .eq('activity_type', target.activity_type)
+                .eq('duration_minutes', target.duration_minutes);
+            }
+          }
+        } catch (e) {
+          console.warn('Failed deleting outdoor activity from Supabase:', e);
+        }
+      }
+
+      return true;
+    },
+    [user, activityLogs, configured]
+  );
+
   return (
     <SmartPlanContext.Provider
       value={{
@@ -649,6 +687,7 @@ export const SmartPlanProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         completeWorkoutSession,
         recordMissedOrRescheduledSession,
         logOutdoorActivity,
+        deleteOutdoorActivity,
         refreshData: () => initSmartPlanData(false),
         syncStatus,
       }}

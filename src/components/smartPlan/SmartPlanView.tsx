@@ -28,7 +28,8 @@ import {
   BookOpen,
   Repeat,
   Compass,
-  BarChart2
+  BarChart2,
+  Trash2
 } from 'lucide-react';
 import { PlannedWorkout, PlannedExercise } from '../../types/smartPlan';
 
@@ -47,6 +48,7 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
     regeneratePlan,
     startWorkoutSession,
     completeWorkoutSession,
+    deleteOutdoorActivity,
     refreshData,
     syncStatus 
   } = useSmartPlan();
@@ -623,11 +625,28 @@ export const SmartPlanView: React.FC<SmartPlanViewProps> = ({ onOpenCheckIn }) =
                           </div>
                         </div>
 
-                        {log.notes && (
-                          <div className="text-right text-xs text-slate-400 italic max-w-xs truncate hidden sm:block">
-                            "{log.notes}"
-                          </div>
-                        )}
+                        <div className="flex items-center gap-3">
+                          {log.notes && (
+                            <div className="text-right text-xs text-slate-400 italic max-w-xs truncate hidden sm:block">
+                              "{log.notes}"
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete this ${log.activity_type} session from ${log.activity_date}?`)) {
+                                await deleteOutdoorActivity(log.id);
+                              }
+                            }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all"
+                            title="Delete activity log"
+                            aria-label="Delete activity log"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

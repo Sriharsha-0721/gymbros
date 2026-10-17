@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ExerciseDetail } from '../../lib/exerciseDatabase';
-import { ExerciseIllustration } from './ExerciseIllustration';
+import { ExerciseDemonstration } from './ExerciseDemonstration';
 import { 
   X, 
   Dumbbell, 
@@ -111,12 +111,13 @@ export const ExerciseDetailModal: React.FC<ExerciseDetailModalProps> = ({
 
         {/* Scrollable Content Body */}
         <div className="p-4 sm:p-5 overflow-y-auto flex-1 min-h-0 space-y-4 text-sm text-slate-300">
-          {/* Visual Movement Demonstration Player */}
-          <ExerciseIllustration
-            svgType={exercise.svgType}
-            name={exercise.name}
-            targetMuscle={exercise.targetMuscle}
-            className="w-full h-52 sm:h-60"
+          {/* Visual Movement Demonstration Player & Anatomical Heatmap */}
+          <ExerciseDemonstration
+            exerciseId={exercise.id}
+            exerciseName={exercise.name}
+            targetMuscleDesc={exercise.targetMuscle}
+            secondaryMusclesDesc={exercise.secondaryMuscles?.join(', ')}
+            className="w-full"
           />
 
           {/* Quick Metrics Bar */}
